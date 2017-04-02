@@ -100,7 +100,7 @@ Format par défaut :
 qui affiche : 
   "error   - mon message"
   
-Pour afficher un '%' ou un '\' il faut les échapper avec un '\'.
+Pour afficher un '%' ou un '\\' il faut les échapper avec un '\\'.
 
 ## Exemple
 

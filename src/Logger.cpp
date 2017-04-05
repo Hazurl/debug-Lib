@@ -65,10 +65,10 @@ void Transport::print(std::string const& msg, std::string const& mainColor, std:
             if (var == "col" && allowCol)
                 out += mainColor;
 
-            if (var == "bld")
+            if (var == "bld" && allowCol)
                 out += BLD;
 
-            if (var == "udl")
+            if (var == "udl" && allowCol)
                 out += UDL;
 
             time_t rawtime;
@@ -124,7 +124,7 @@ void Transport::print(std::string const& msg, std::string const& mainColor, std:
                 out += std::to_string(t->tm_mday);
             }
 
-            if (var == "clr")
+            if (var == "clr" && allowCol)
                 out += RST;
 
             if (var == "msg") {

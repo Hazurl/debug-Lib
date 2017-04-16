@@ -53,9 +53,9 @@ private:
 
     std::string format = "{col}{bld}{lvl}{clr} {8}- {msg}"; // <color><bold>level</bold></color> - message            "-" is at the position 10
     bool allowCol = true;
-}
+};
 
-;;;
+
 
 class Logger {
 public:

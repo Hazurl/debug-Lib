@@ -1,137 +1,208 @@
 #ifndef __LOGGER_H__
 #define __LOGGER_H__
 
+#include <ctime>
+#include <sys/time.h>
+#include <stack>
 #include <vector>
-#include <map>
+#include <string>
 #include <iostream>
 #include <fstream>
-#include <string>
-#include <ctime>
 #include <sstream>
-#include <unordered_set>
-#include <sys/time.h>
+#include <map>
+#include <list>
 
-//          COLOR
 #define RST  "\033[0m"
 #define BLD  "\033[1m"
-#define UDL  "\033[4m"
-#define KRED  "\033[31m"
-#define KGRN  "\033[32m"
-#define KYEL  "\033[33m"
-#define KBLU  "\033[34m"
-#define KMAG  "\033[35m"
-#define KCYN  "\033[36m"
-#define KWHT  "\033[37m"
+#define UDL "\33[4m"
 
-#define FRED(x) KRED << x << RST
-#define FGRN(x) KGRN << x << RST
-#define FYEL(x) KYEL << x << RST
-#define FBLU(x) KBLU << x << RST
-#define FMAG(x) KMAG << x << RST
-#define FCYN(x) KCYN << x << RST
-#define FWHT(x) KWHT << x << RST
+namespace haz {
 
-#define BOLD(x) "\033[1m" << x << RST
-#define UNDL(x) "\033[4m" << x << RST
-
-class Transport {
+class Level {
 public:
-    Transport(std::string const& filePath);
-    Transport(std::ostream& os);
+    static const unsigned int 
+        OFF = 1000,
+        ERROR = 600,
+        WARNING = 500,
+        CONFIG = 400,
+        TRACE = 300,
+        DEBUG = 200,
+        INFO = 100;
 
-    std::ostream& getStream();
-    void setFormat(std::string const& format);
-    void allowColor(bool c);
-
-    void print(std::string const& msg, std::string const& mainColor, std::string const& level, bool endl = true);
-    void append(std::string const& msg, bool endl = false);
-
-    ~Transport();
-private:
-    std::ostream os;
-    std::ofstream fos;
-
-    std::string format = "{col}{bld}{lvl}{clr} {8}- {msg}"; // <color><bold>level</bold></color> - message            "-" is at the position 10
-    bool allowCol = true;
+    static std::string to_string(unsigned int i);
 };
 
+
+class Color {
+public:
+    static constexpr char const* RED = "\033[31m";
+    static constexpr char const* GREEN = "\033[32m"; 
+    static constexpr char const* YELLOW = "\033[33m"; 
+    static constexpr char const* BLUE = "\033[34m";
+    static constexpr char const* MAGENTA = "\033[35m"; 
+    static constexpr char const* CYAN = "\033[36m";
+    static constexpr char const* WHITE = "\033[37m";
+};
+
+struct Message {
+    std::string msg;
+    std::string func;
+    std::string file;
+    long line;
+    unsigned int level;
+    const char* color;
+};
+
+
+class Handler {
+public:
+    Handler* color(bool b) { _color = b; return this; }
+    Handler* indentation(unsigned int i) { _indentation = i; return this; }
+    Handler* format(std::string const& f) { _format = f; return this; }
+
+    Handler ();
+    virtual ~Handler();
+    void write (Message const& msg);
+
+protected:
+    virtual void append (std::string const& msg) = 0;
+
+private:
+    bool _color;
+    unsigned int _indentation;
+    std::string _format;
+
+};
+
+class ConsoleHandler : public Handler {
+public:
+    ConsoleHandler();
+    ~ConsoleHandler();
+
+private:
+    void append (std::string const& msg);
+
+};
+
+class FileHandler : public Handler {
+public:
+    FileHandler(const char* filename, bool append = true);
+    ~FileHandler();
+
+private:
+    void append (std::string const& msg);
+
+    std::ofstream os;
+
+};
+
+class StreamHandler : public Handler {
+public:
+    StreamHandler(std::ostream const& os);
+    ~StreamHandler();
+
+private:
+    void append (std::string const& msg);
+
+    std::ostream os;
+
+};
 
 
 class Logger {
 public:
-    static const unsigned int NOTHING = 0
-                            , ERROR = 1
-                            , WARNING = 2
-                            , WARN = 2 // alias de Warning
-                            , LOG = 4
-                            , INFO = 8
-                            , VERBOSE = 16
-                            , VERB = 16 // alias de Verbose
-                            , SPECIAL = 32
-                            , SPE = 32 // alias de Special
-                            , ALL = ERROR | WARN | LOG | INFO | VERB | SPE;
+        Logger(const char* name = "");
+        ~Logger();
 
-    static void error (std::string const& msg)      { Logger::get()._error(msg); }
-    static void warning(std::string const& msg)     { Logger::get()._warning(msg); }
-    static void warn(std::string const& msg)        { Logger::get()._warning(msg); }
-    static void log(std::string const& msg)         { Logger::get()._log(msg); }
-    static void info(std::string const& msg)        { Logger::get()._info(msg); }
-    static void verbose(std::string const& msg)     { Logger::get()._verbose(msg); }
-    static void verb(std::string const& msg)        { Logger::get()._verbose(msg); }
-    static void special(std::string const& msg)     { Logger::get()._special(msg); }
-    static void spe(std::string const& msg)         { Logger::get()._special(msg); }
+        static Logger& get(const char* name);
 
-    static void createTransport(Transport* t, std::string const& name);
-    static void setTransportOf(unsigned int levels, std::string const& name);
-    static void addTransportOf(unsigned int levels, std::string const& name);
-    static void removeTransportOf(unsigned int levels, std::string const& name);
-    static void cleanTransportOf(unsigned int levels);
+        Logger& clearHandlers();
+        Logger& addHandler(Handler* h, bool destroy_by_logger = true);
+        
+        Logger& setLevel(int l);
+        Logger& setColorsLevel(std::vector< std::pair<const char*, unsigned int> > vcl);
 
-    static void setFormatOf(std::string const& name, std::string const& format);
-    static void allowColorOn(std::string const& name, bool allowC);
+        bool isEnabled(unsigned int l);
 
-    static void showOnly(unsigned int levels = Logger::ALL);
+        void entering(const char* file, std::string const& func, long line, std::vector<std::string> params);
+        void exiting(const char* file, std::string const& func, long line, std::string const& obj);
+        void stackTrace(const char* file, std::string const& func, long line, int depth = 0); // 0 = all
 
-    static void section(std::string name, unsigned int levels = Logger::ALL, unsigned int titleLevels = Logger::ALL);
-    static void section_end(std::string name);
-    static void showSection(std::string name);
-    static void hideSection(std::string name);
-    static void title(std::string name, unsigned int levels);
+        template<class T>
+        void throwException (const char* file, std::string const& func, long line, int level, std::string const& msg) {
+            error(file, func, line, "Throw Exception >> " + msg);
+            stackTrace(file, func, line);
+            throw T(msg);
+        }
+
+        void log(const char* file, std::string const& func, long line, unsigned int level, std::string const& msg);
+        void error(const char* file, std::string const& func, long line, std::string const& msg);
+        void warn(const char* file, std::string const& func, long line, std::string const& msg);
+        void config(const char* file, std::string const& func, long line, std::string const& msg);
+        void trace(const char* file, std::string const& func, long line, std::string const& msg);
+        void debug(const char* file, std::string const& func, long line, std::string const& msg);
+        void info(const char* file, std::string const& func, long line, std::string const& msg);
 
 private:
-    Logger();
-    ~Logger();
 
-// SINGLETON
-    Logger(Logger const&) = delete;
-    void operator=(Logger const&) = delete;
-    static Logger& get() { static Logger l; return l; }
+    static std::map<const char*, Logger> loggers;
 
-    void _error (std::string const& msg);
-    void _warning(std::string const& msg);
-    void _log(std::string const& msg);
-    void _info(std::string const& msg);
-    void _verbose(std::string const& msg);
-    void _special(std::string const& msg);
+    struct stackInfo {
+        const char* file;
+        std::string const& func;
+        long line;
+        std::vector<std::string> params;
+    };
 
-    void _title(std::string name, unsigned int levels);
-    unsigned int getLogsLevel();
+    struct HandlerInfo {
+        Handler* h;
+        bool destroy_by_logger;
+    };
 
-    std::map<std::string, Transport*> transports;
-    std::unordered_set<std::string> errTrans;
-    std::unordered_set<std::string> warnTrans;
-    std::unordered_set<std::string> logTrans;
-    std::unordered_set<std::string> infoTrans;
-    std::unordered_set<std::string> verbTrans;
-    std::unordered_set<std::string> speTrans;
+    std::stack<stackInfo> stackTr;
+    std::list<HandlerInfo> handlers;
 
-    std::unordered_set<std::string> curSections;
-    std::unordered_set<std::string> sectionsHidden;
-    std::map<std::string, unsigned int> sectionLogsLevel;
-    unsigned int mainLogsLevel = Logger::ALL;
+    unsigned int level;
+    const char* name;
 
-    bool logsLevelChanged = true;
-    unsigned int curLogsLevel = Logger::ALL;
+    std::vector< std::pair<const char*, unsigned int> > colorsLevel;
 };
 
+static std::string getScopedClassMethod( std::string thePrettyFunction )
+{
+  size_t index = thePrettyFunction . find( "(" );
+  if ( index == std::string::npos )
+    return thePrettyFunction;  // Degenerate case 
+
+  thePrettyFunction . erase( index );
+
+  index = thePrettyFunction . rfind( " " );
+  if ( index == std::string::npos )
+    return thePrettyFunction;  // Degenerate case 
+
+  thePrettyFunction . erase( 0, index + 1 );
+
+  return thePrettyFunction;   // The scoped class name. 
+}
+
+/*
+template<class T>
+std::string stringify (T const& t) {
+    std::ostringstream os;
+    os << t;
+    return os.str();
+}
+
+template<> std::string stringify<std::string> (std::string const& t)                { return t; }
+template<> std::string stringify<int> (int const& t)                                { return std::to_string(t); }
+template<> std::string stringify<long double> (long double const& t)                { return std::to_string(t); }
+template<> std::string stringify<long> (long const& t)                              { return std::to_string(t); }
+template<> std::string stringify<unsigned long> (unsigned long const& t)            { return std::to_string(t); }
+template<> std::string stringify<float> (float const& t)                            { return std::to_string(t); }
+template<> std::string stringify<double> (double const& t)                          { return std::to_string(t); }
+template<> std::string stringify<long long> (long long const& t)                    { return std::to_string(t); }
+template<> std::string stringify<unsigned> (unsigned const& t)                      { return std::to_string(t); }
+template<> std::string stringify<unsigned long long> (unsigned long long const& t)  { return std::to_string(t); }
+*/
+} // namespace haz
 #endif

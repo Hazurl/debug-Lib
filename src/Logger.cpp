@@ -1,49 +1,46 @@
 #include "Logger.h"
 
-Transport::Transport(std::string const& filePath) : os(std::cout.rdbuf()) {
-    fos.open(filePath, std::ios::out | std::ios::app);
-    os.rdbuf(fos.rdbuf());
+using namespace haz;
+
+// ===== LEVEL =====
+
+std::string Level::to_string(unsigned int i) {
+    if (i >= OFF)       return "off";
+    if (i >= ERROR)     return "error";
+    if (i >= WARNING)   return "warning";
+    if (i >= CONFIG)    return "config";
+    if (i >= TRACE)     return "trace";
+    if (i >= DEBUG)     return "debug";
+    if (i >= INFO)      return "info";
+                        return "detail";
 }
 
-Transport::Transport(std::ostream& os) : os(os.rdbuf()) {}
 
-std::ostream& Transport::getStream() {
-    return os;
-}
+// ===== HANDLER =====
 
-void Transport::setFormat(std::string const& format) {
-    this->format = format;
-}
+Handler::Handler () : _color(true), _indentation(2), _format("({func}) {col}{bld}{lvl}{clr} : {msg}{endl}") {}
+Handler::~Handler() {}
 
-void Transport::allowColor(bool c) {
-    allowCol = c;
-}
-
-void Transport::print(std::string const& msg, std::string const& mainColor, std::string const& level, bool endl) {
+void Handler::write(Message const& msg) {
     bool escape = false;
     bool meta = false;
     bool num = false;
 
     std::string out = "";
     std::string var = "";
-    int pos = 0;
 
-    for (char const& c : format) {
+    for (char const& c : _format) {
         if (num) {
             if (c >= '0' && c <= '9') {
                 var += c;
             } else if (c == '}') {
-                int i = std::stoi(var);
-                for (; i > pos; pos++)
-                    out += ' ';
-                pos++;
+                for (unsigned int i = std::stoi(var); i > out.size(); out += ' ')
                 num = false;
                 var = "";
             } else {
                 var = "";
                 num = false;
                 out += c;
-                pos++;
             }
 
             escape = false;
@@ -57,18 +54,25 @@ void Transport::print(std::string const& msg, std::string const& mainColor, std:
         } else if (meta) {
             meta = false;
 
-            if (var == "lvl") {
-                out += level;
-                pos += level.size();
-            }
+            if (var == "lvl")
+                out += Level::to_string(msg.level);
 
-            if (var == "col" && allowCol)
-                out += mainColor;
+            if (var == "line")
+                out += std::to_string(msg.line);
 
-            if (var == "bld" && allowCol)
+            if (var == "func")
+                out += msg.func;
+
+            if (var == "file")
+                out += msg.file;
+
+            if (var == "col" && _color)
+                out += msg.color;
+
+            if (var == "bld" && _color)
                 out += BLD;
 
-            if (var == "udl" && allowCol)
+            if (var == "udl" && _color)
                 out += UDL;
 
             time_t rawtime;
@@ -94,16 +98,12 @@ void Transport::print(std::string const& msg, std::string const& mainColor, std:
             }
 
             if (var == "mic") {
-                //if (t->tm_sec < 10)
-                    //out += '0';
                 struct timeval tv;
                 gettimeofday (&tv, nullptr);
                 out += std::to_string(tv.tv_usec % 1000);
             }
 
             if (var == "mil") {
-                //if (t->tm_sec < 10)
-                    //out += '0';
                 struct timeval tv;
                 gettimeofday (&tv, nullptr);
                 out += std::to_string(tv.tv_usec / 1000);
@@ -124,13 +124,14 @@ void Transport::print(std::string const& msg, std::string const& mainColor, std:
                 out += std::to_string(t->tm_mday);
             }
 
-            if (var == "clr" && allowCol)
+            if (var == "clr" && _color)
                 out += RST;
 
-            if (var == "msg") {
-                out += msg;
-                pos += level.size();
-            }
+            if (var == "msg")
+                out += msg.msg;
+
+            if (var == "endl")
+                out += '\n';
 
             var = "";
             escape = false;
@@ -141,273 +142,122 @@ void Transport::print(std::string const& msg, std::string const& mainColor, std:
                 escape = true;
             } else {
                 out += c;
-                pos++;
                 escape = false;
             }
         }
     }
 
-    append(out + RST, endl);
+    append(out);
 }
 
-void Transport::append(std::string const& msg, bool endl) {
+ConsoleHandler::ConsoleHandler() {}
+ConsoleHandler::~ConsoleHandler() {}
+
+void ConsoleHandler::append(std::string const& msg) {
+    std::cout << msg;
+}
+
+FileHandler::FileHandler(const char* filename, bool append) {
+    if (append)
+        os.open(filename, std::ios::out | std::ios::app);
+    else 
+        os.open(filename, std::ios::out);
+}
+
+FileHandler::~FileHandler() {
+    if (os)
+        os.close();
+}
+
+void FileHandler::append(std::string const& msg) {
     os << msg;
-    if (endl)
-        os << std::endl;
 }
 
-Transport::~Transport() {
-    if (fos)
-        fos.close();
+StreamHandler::StreamHandler(std::ostream const& os) : os(os.rdbuf())  {}
+StreamHandler::~StreamHandler() {}
+
+void StreamHandler::append(std::string const& msg) {
+    os << msg;
 }
 
-Logger::Logger() {
-    this->transports["cout"] = new Transport(std::cout);
+// ===== LOGGER =====
 
-    this->errTrans.insert("cout");
-    this->warnTrans.insert("cout");
-    this->logTrans.insert("cout");
-    this->infoTrans.insert("cout");
-    this->verbTrans.insert("cout");
-    this->speTrans.insert("cout");
+std::map<const char*, Logger> Logger::loggers = {};
+
+Logger& Logger::get(const char* name) {
+    if (loggers.find(name) == loggers.end())
+        loggers.insert( { name, Logger(name) } );
+    return loggers[name];
 }
 
-Logger::~Logger() {
-    for (auto& tuple : transports)
-        delete tuple.second;
+Logger::Logger(const char* name) : name(name) {}
+Logger::~Logger() { clearHandlers(); }
+
+Logger& Logger::clearHandlers() {
+    for (auto& hi : handlers)
+        if (hi.destroy_by_logger)
+            delete hi.h;
+    return *this;
 }
 
-void Logger::createTransport(Transport* t, std::string const& name) {
-    Logger& l = Logger::get();
-    if (l.transports.find(name) != l.transports.end()) {
-        delete l.transports[name];
-    }
-
-    l.transports[name] = t;
+Logger& Logger::addHandler(Handler* h, bool destroy_by_logger) {
+    handlers.push_back({h, destroy_by_logger});
+    return *this;
 }
 
-void Logger::setTransportOf(unsigned int levels, std::string const& name) {
-    Logger::cleanTransportOf(levels);
-    Logger::addTransportOf(levels, name);
+Logger& Logger::setLevel(int l) {
+    level = l;
+    return *this;
 }
 
-void Logger::addTransportOf(unsigned int levels, std::string const& name) {
-    Logger& l = Logger::get();
-
-    if (l.transports.find(name) == l.transports.end())
-        return;
-
-    if (levels & Logger::ERROR)
-        l.errTrans.insert(name);
-    if (levels & Logger::WARN)
-        l.warnTrans.insert(name);
-    if (levels & Logger::LOG)
-        l.logTrans.insert(name);
-    if (levels & Logger::INFO)
-        l.infoTrans.insert(name);
-    if (levels & Logger::VERB)
-        l.verbTrans.insert(name);
-    if (levels & Logger::SPE)
-        l.speTrans.insert(name);
+Logger& Logger::setColorsLevel(std::vector< std::pair<const char*, unsigned int> > vcl) {
+    colorsLevel = vcl;
+    return *this;
 }
 
-void Logger::removeTransportOf(unsigned int levels, std::string const& name) {
-    Logger& l = Logger::get();
-
-    if (l.transports.find(name) == l.transports.end())
-        return;
-
-    if (levels & Logger::ERROR)
-        l.errTrans.erase(name);
-    if (levels & Logger::WARN)
-        l.warnTrans.erase(name);
-    if (levels & Logger::LOG)
-        l.logTrans.erase(name);
-    if (levels & Logger::INFO)
-        l.infoTrans.erase(name);
-    if (levels & Logger::VERB)
-        l.verbTrans.erase(name);
-    if (levels & Logger::SPE)
-        l.speTrans.erase(name);
+bool Logger::isEnabled(unsigned int l) {
+    return l >= level;
 }
 
-void Logger::cleanTransportOf(unsigned int levels) {
-    Logger& l = Logger::get();
-
-    if (levels & Logger::ERROR)
-        l.errTrans.clear();
-    if (levels & Logger::WARN)
-        l.warnTrans.clear();
-    if (levels & Logger::LOG)
-        l.logTrans.clear();
-    if (levels & Logger::INFO)
-        l.infoTrans.clear();
-    if (levels & Logger::VERB)
-        l.verbTrans.clear();
-    if (levels & Logger::SPE)
-        l.speTrans.clear();
+void Logger::entering(const char* file, std::string const& func, long line, std::vector<std::string> params) {
+    stackTr.push( {file, func, line, params} );
+    trace(file, func, line, "Entering " + func);
 }
 
-void Logger::setFormatOf(std::string const& name, std::string const& format) {
-    Logger& l = Logger::get();
-
-    std::map<std::string, Transport*>::iterator it = l.transports.find(name);
-
-    if (it == l.transports.end())
-        return;
-
-    it->second->setFormat(format);
+void Logger::exiting(const char* file, std::string const& func, long line, std::string const& obj) {
+    stackTr.pop();
+    trace(file, func, line, "Exiting " + func + " : " + obj);
 }
 
-void Logger::_error (std::string const& msg) {
-    if (Logger::ERROR & getLogsLevel())
-        for (std::string const& s : errTrans)
-            transports[s]->print(msg, KRED, "error");
+void Logger::stackTrace(const char* file, std::string const& func, long line, int depth) {
+    trace(file, func, line, "Stack trace (" + std::to_string(depth) + ") >>");
 }
 
-void Logger::_warning(std::string const& msg) {
-    if (Logger::WARN & getLogsLevel())
-        for (std::string const& s : warnTrans)
-            transports[s]->print(msg, KYEL, "warning");
-    }
-
-void Logger::_log(std::string const& msg) {
-    if (Logger::LOG & getLogsLevel())
-        for (std::string const& s : logTrans)
-            transports[s]->print(msg, KBLU, "log");
-
+void Logger::log(const char* file, std::string const& func, long line, unsigned int level, std::string const& msg) {
+    for (auto& hi : handlers)
+        hi.h->write( {msg, func, file, line, level, Color::RED } );
 }
 
-void Logger::_info(std::string const& msg) {
-    if (Logger::INFO & getLogsLevel())
-        for (std::string const& s : infoTrans)
-            transports[s]->print(msg, KCYN, "info");
-
+void Logger::error(const char* file, std::string const& func, long line, std::string const& msg) {
+    log(file, func, line, Level::ERROR, msg);
 }
 
-void Logger::_verbose(std::string const& msg) {
-    if (Logger::VERB & getLogsLevel())
-        for (std::string const& s : verbTrans)
-            transports[s]->print(msg, KGRN, "verbose");
-
+void Logger::warn(const char* file, std::string const& func, long line, std::string const& msg) {
+    log(file, func, line, Level::WARNING, msg);
 }
 
-void Logger::_special(std::string const& msg) {
-    if (Logger::SPE & getLogsLevel())
-        for (std::string const& s : speTrans)
-            transports[s]->print(msg, KMAG, "special");
-
+void Logger::config(const char* file, std::string const& func, long line, std::string const& msg) {
+    log(file, func, line, Level::CONFIG, msg);
 }
 
-void Logger::allowColorOn(std::string const& name, bool allowC) {
-    Logger& l = Logger::get();
-
-    if (l.transports.find(name) == l.transports.end())
-        return;
-
-    l.transports[name]->allowColor(allowC);
+void Logger::trace(const char* file, std::string const& func, long line, std::string const& msg) {
+    log(file, func, line, Level::TRACE, msg);
 }
 
-void Logger::section(std::string name, unsigned int levels, unsigned int titleLevels) {
-    Logger& l = Logger::get();
-    l.curSections.insert(name);
-    l.sectionLogsLevel[name] = levels;
-    Logger::get().logsLevelChanged = true;
-
-    Logger::get()._title(name, titleLevels);
+void Logger::debug(const char* file, std::string const& func, long line, std::string const& msg) {
+    log(file, func, line, Level::DEBUG, msg);
 }
 
-void Logger::section_end(std::string name) {
-    Logger::get().curSections.erase(name);
-    Logger::get().logsLevelChanged = true;
-}
-
-void Logger::showSection(std::string name) {
-    Logger::get().sectionsHidden.erase(name);
-    Logger::get().logsLevelChanged = true;
-}
-
-void Logger::hideSection(std::string name) {
-    Logger::get().sectionsHidden.insert(name);
-    Logger::get().logsLevelChanged = true;
-}
-
-void Logger::title(std::string name, unsigned int levels) {
-    Logger::get()._title(name, levels);
-}
-
-void Logger::_title(std::string name, unsigned int levels) {
-    std::string top = "\t╔";
-    for (unsigned i = 0; i < name.size() + 2; ++i) top += "═";
-    top += "╗";
-
-    std::string center = "\t║ " + name + " ║";
-
-    std::string bottom = "\t╚";
-    for (unsigned i = 0; i < name.size() + 2; ++i) bottom += "═";
-    bottom += "╝" RST;
-
-    if (levels & Logger::ERROR & getLogsLevel()) {
-        for (std::string const& s : errTrans) {
-            transports[s]->append(KRED + top, true);
-            transports[s]->append(center, true);
-            transports[s]->append(bottom, true);
-        }
-    }
-    if (levels & Logger::WARN & getLogsLevel()) {
-        for (std::string const& s : warnTrans) {
-            transports[s]->append(KYEL + top, true);
-            transports[s]->append(center, true);
-            transports[s]->append(bottom, true);
-        }
-    }
-    if (levels & Logger::LOG & getLogsLevel()) {
-        for (std::string const& s : logTrans) {
-            transports[s]->append(KBLU + top, true);
-            transports[s]->append(center, true);
-            transports[s]->append(bottom, true);
-        }
-    }
-    if (levels & Logger::INFO & getLogsLevel()) {
-        for (std::string const& s : infoTrans) {
-            transports[s]->append(KCYN + top, true);
-            transports[s]->append(center, true);
-            transports[s]->append(bottom, true);
-        }
-    }
-    if (levels & Logger::VERB & getLogsLevel()) {
-        for (std::string const& s : verbTrans) {
-            transports[s]->append(KGRN + top, true);
-            transports[s]->append(center, true);
-            transports[s]->append(bottom, true);
-        }
-    }
-    if (levels & Logger::SPE & getLogsLevel()) {
-        for (std::string const& s : speTrans) {
-            transports[s]->append(KMAG + top, true);
-            transports[s]->append(center, true);
-            transports[s]->append(bottom, true);
-        }
-    }
-}
-
-unsigned int Logger::getLogsLevel() {
-    if(logsLevelChanged) {
-        curLogsLevel = mainLogsLevel;
-
-        for (auto& curName : curSections) {
-            if (sectionsHidden.find(curName) != sectionsHidden.end())
-                return 0;
-            
-            curLogsLevel &= sectionLogsLevel[curName];
-        }
-
-        logsLevelChanged = false;
-    }
-
-    return curLogsLevel;
-}
-
-void Logger::showOnly(unsigned int levels) {
-    Logger::get().mainLogsLevel = levels;
+void Logger::info(const char* file, std::string const& func, long line, std::string const& msg) {
+    log(file, func, line, Level::INFO, msg);
 }

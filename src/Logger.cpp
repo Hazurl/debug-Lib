@@ -235,7 +235,7 @@ void Logger::stackTrace(const char* file, std::string const& func, long line, in
 
 void Logger::log(const char* file, std::string const& func, long line, unsigned int level, std::string const& msg) {
     for (auto& hi : handlers)
-        hi.h->write( {msg, func, file, line, level, Color::RED } );
+        hi.h->write( {msg, func, file, line, level, getColor(level) } );
 }
 
 void Logger::error(const char* file, std::string const& func, long line, std::string const& msg) {
@@ -260,4 +260,16 @@ void Logger::debug(const char* file, std::string const& func, long line, std::st
 
 void Logger::info(const char* file, std::string const& func, long line, std::string const& msg) {
     log(file, func, line, Level::INFO, msg);
+}
+
+const char* Logger::getColor(unsigned int i) {
+    const char* col = Color::WHITE;
+    for (auto p : colorsLevel) {
+        if (p.second >= i)
+            col = p.first;
+        else
+            return col;
+    }
+
+    return Color::WHITE;
 }

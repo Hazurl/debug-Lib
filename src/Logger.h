@@ -165,6 +165,7 @@ private:
     unsigned int level;
     const char* name;
 
+    const char* getColor(unsigned int i);
     std::vector< std::pair<const char*, unsigned int> > colorsLevel;
 };
 

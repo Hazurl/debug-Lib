@@ -18,7 +18,7 @@ std::string Level::to_string(unsigned int i) {
 
 // ===== HANDLER =====
 
-Handler::Handler () : _color(true), _indentation(2), _format("({func}) {col}{bld}{lvl}{clr} : {msg}{endl}") {}
+Handler::Handler () : _color(true), _indentation(2), _format("({file} : {line} -> {func}) {col}{bld}{lvl}{clr} : {msg}{endl}") {}
 Handler::~Handler() {}
 
 void Handler::write(Message const& msg) {

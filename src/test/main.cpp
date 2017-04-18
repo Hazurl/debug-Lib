@@ -1,14 +1,6 @@
 #include "../Logger.h"
 #include <iostream>
 
-#define log(l, m) log(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (l), (m));
-
-#define error(m) error(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m));
-#define warn(m) warn(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m));
-#define config(m) config(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m));
-#define trace(m) trace(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m));
-#define debug(m) debug(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m));
-#define info(m) info(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m));
 
 
 using namespace haz;
@@ -17,10 +9,11 @@ Logger& logger = Logger::get("main");
 
 namespace test {
 void thing () {
-    logger.entering(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, {} );
+    logger.entering({});
     logger.debug("inside function thing from namespace test");
-    logger.stackTrace(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__);
-    logger.exiting(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, "" );
+    logger.stackTrace();
+    logger.exiting();
+    logger.exiting("ok");
 }
 };
 

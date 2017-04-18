@@ -16,6 +16,19 @@
 #define BLD  "\033[1m"
 #define UDL "\33[4m"
 
+#define log(l, m) _log(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (l), (m));
+
+#define error(m) _error(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m));
+#define warn(m) _warn(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m));
+#define config(m) _config(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m));
+#define trace(m) _trace(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m));
+#define debug(m) _debug(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m));
+#define info(m) _info(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m));
+
+#define entering(p) _entering(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (p));
+#define exiting(p...) _exiting(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (p));
+
+
 namespace haz {
 
 class Level {
@@ -124,24 +137,24 @@ public:
 
         bool isEnabled(unsigned int l);
 
-        void entering(const char* file, std::string const& func, long line, std::vector<std::string> params);
-        void exiting(const char* file, std::string const& func, long line, std::string const& obj);
-        void stackTrace(const char* file, std::string const& func, long line, int depth = 0); // 0 = all
+        void _entering(const char* file, std::string const& func, long line, std::vector<std::string> params);
+        void _exiting(const char* file, std::string const& func, long line, std::string const& obj);
+        void _stackTrace(const char* file, std::string const& func, long line, int depth = 0); // 0 = all
 
         template<class T>
-        void throwException (const char* file, std::string const& func, long line, int level, std::string const& msg) {
+        void _throwException (const char* file, std::string const& func, long line, int level, std::string const& msg) {
             error(file, func, line, "Throw Exception >> " + msg);
             stackTrace(file, func, line);
             throw T(msg);
         }
 
-        void log(const char* file, std::string const& func, long line, unsigned int level, std::string const& msg);
-        void error(const char* file, std::string const& func, long line, std::string const& msg);
-        void warn(const char* file, std::string const& func, long line, std::string const& msg);
-        void config(const char* file, std::string const& func, long line, std::string const& msg);
-        void trace(const char* file, std::string const& func, long line, std::string const& msg);
-        void debug(const char* file, std::string const& func, long line, std::string const& msg);
-        void info(const char* file, std::string const& func, long line, std::string const& msg);
+        void _log(const char* file, std::string const& func, long line, unsigned int level, std::string const& msg);
+        void _error(const char* file, std::string const& func, long line, std::string const& msg);
+        void _warn(const char* file, std::string const& func, long line, std::string const& msg);
+        void _config(const char* file, std::string const& func, long line, std::string const& msg);
+        void _trace(const char* file, std::string const& func, long line, std::string const& msg);
+        void _debug(const char* file, std::string const& func, long line, std::string const& msg);
+        void _info(const char* file, std::string const& func, long line, std::string const& msg);
 
 private:
 

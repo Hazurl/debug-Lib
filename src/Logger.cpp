@@ -219,47 +219,47 @@ bool Logger::isEnabled(unsigned int l) {
     return l >= level;
 }
 
-void Logger::entering(const char* file, std::string const& func, long line, std::vector<std::string> params) {
+void Logger::_entering(const char* file, std::string const& func, long line, std::vector<std::string> params) {
     stackTr.push( {file, func, line, params} );
-    trace(file, func, line, "Entering " + func);
+    _trace(file, func, line, "Entering " + func);
 }
 
-void Logger::exiting(const char* file, std::string const& func, long line, std::string const& obj) {
+void Logger::_exiting(const char* file, std::string const& func, long line, std::string const& obj) {
     stackTr.pop();
-    trace(file, func, line, "Exiting " + func + " : " + obj);
+    _trace(file, func, line, "Exiting " + func + " : " + obj);
 }
 
-void Logger::stackTrace(const char* file, std::string const& func, long line, int depth) {
-    trace(file, func, line, "Stack trace (" + std::to_string(depth) + ") >>");
+void Logger::_stackTrace(const char* file, std::string const& func, long line, int depth) {
+    _trace(file, func, line, "Stack trace (" + std::to_string(depth) + ") >>");
 }
 
-void Logger::log(const char* file, std::string const& func, long line, unsigned int level, std::string const& msg) {
+void Logger::_log(const char* file, std::string const& func, long line, unsigned int level, std::string const& msg) {
     for (auto& hi : handlers)
         hi.h->write( {msg, func, file, line, level, getColor(level) } );
 }
 
-void Logger::error(const char* file, std::string const& func, long line, std::string const& msg) {
-    log(file, func, line, Level::ERROR, msg);
+void Logger::_error(const char* file, std::string const& func, long line, std::string const& msg) {
+    _log(file, func, line, Level::ERROR, msg);
 }
 
-void Logger::warn(const char* file, std::string const& func, long line, std::string const& msg) {
-    log(file, func, line, Level::WARNING, msg);
+void Logger::_warn(const char* file, std::string const& func, long line, std::string const& msg) {
+    _log(file, func, line, Level::WARNING, msg);
 }
 
-void Logger::config(const char* file, std::string const& func, long line, std::string const& msg) {
-    log(file, func, line, Level::CONFIG, msg);
+void Logger::_config(const char* file, std::string const& func, long line, std::string const& msg) {
+    _log(file, func, line, Level::CONFIG, msg);
 }
 
-void Logger::trace(const char* file, std::string const& func, long line, std::string const& msg) {
-    log(file, func, line, Level::TRACE, msg);
+void Logger::_trace(const char* file, std::string const& func, long line, std::string const& msg) {
+    _log(file, func, line, Level::TRACE, msg);
 }
 
-void Logger::debug(const char* file, std::string const& func, long line, std::string const& msg) {
-    log(file, func, line, Level::DEBUG, msg);
+void Logger::_debug(const char* file, std::string const& func, long line, std::string const& msg) {
+    _log(file, func, line, Level::DEBUG, msg);
 }
 
-void Logger::info(const char* file, std::string const& func, long line, std::string const& msg) {
-    log(file, func, line, Level::INFO, msg);
+void Logger::_info(const char* file, std::string const& func, long line, std::string const& msg) {
+    _log(file, func, line, Level::INFO, msg);
 }
 
 const char* Logger::getColor(unsigned int i) {

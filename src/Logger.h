@@ -3,7 +3,6 @@
 
 #include <ctime>
 #include <sys/time.h>
-#include <stack>
 #include <vector>
 #include <string>
 #include <iostream>
@@ -16,18 +15,20 @@
 #define BLD  "\033[1m"
 #define UDL "\33[4m"
 
-#define log(l, m) _log(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (l), (m));
+#define log(l, m) _log(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (l), (m))
 
-#define error(m) _error(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m));
-#define warn(m) _warn(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m));
-#define config(m) _config(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m));
-#define trace(m) _trace(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m));
-#define debug(m) _debug(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m));
-#define info(m) _info(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m));
+#define error(m) _error(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m))
+#define warn(m) _warn(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m))
+#define config(m) _config(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m))
+#define trace(m) _trace(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m))
+#define debug(m) _debug(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m))
+#define info(m) _info(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m))
 
-#define entering(p) _entering(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (p));
-#define exiting(p...) _exiting(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (p));
+#define entering(p) _entering(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, p)
+#define exiting(o) _exiting(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__ , o )
 
+#define stackTrace(d) _stackTrace(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__ , d )
+#define throwException(t, m) _throwException<t> (__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__ , m );
 
 namespace haz {
 
@@ -71,11 +72,20 @@ class Handler {
 public:
     Handler* color(bool b) { _color = b; return this; }
     Handler* indentation(unsigned int i) { _indentation = i; return this; }
-    Handler* format(std::string const& f) { _format = f; return this; }
+    Handler* commonFormat(std::string const& f) { _commonFormat = f; return this; }
+    Handler* exFormat(std::string const& f) { _exFormat = f; return this; }
+    Handler* stackFormat(std::string const& f) { _stackFormat = f; return this; }
+    Handler* enteringFormat(std::string const& f) { _enteringFormat = f; return this; }
+    Handler* exitingFormat(std::string const& f) { _exitingFormat = f; return this; }
 
     Handler ();
     virtual ~Handler();
-    void write (Message const& msg);
+
+    void common(Message const& msg) { write (msg, _commonFormat); }
+    void exception(Message const& msg) { write (msg, _exFormat); }
+    void stack(std::vector<Message> const& msgs) { writeMulti (msgs, _stackFormat); }
+    void enter(Message const& msg) { write (msg, _enteringFormat); }
+    void exit(Message const& msg) { write (msg, _exitingFormat); }
 
 protected:
     virtual void append (std::string const& msg) = 0;
@@ -83,8 +93,15 @@ protected:
 private:
     bool _color;
     unsigned int _indentation;
-    std::string _format;
+    std::string _commonFormat;
+    std::string _exFormat;
+    std::string _stackFormat;
+    std::string _enteringFormat;
+    std::string _exitingFormat;
 
+    void write (Message const& msg, std::string const& fmt);
+    void writeMulti (std::vector<Message> const& msgs, std::string const& fmt);
+    std::string writeLoop (std::vector<Message> const& msgs, std::string const& fmt);
 };
 
 class ConsoleHandler : public Handler {
@@ -142,10 +159,12 @@ public:
         void _stackTrace(const char* file, std::string const& func, long line, int depth = 0); // 0 = all
 
         template<class T>
-        void _throwException (const char* file, std::string const& func, long line, int level, std::string const& msg) {
-            error(file, func, line, "Throw Exception >> " + msg);
-            stackTrace(file, func, line);
-            throw T(msg);
+        void _throwException (const char* file, std::string const& func, long line, std::string const& msg) {
+            for (auto& hi : handlers)
+                hi.h->exception( {msg, func, file, line, level, Color::RED });
+            this->_stackTrace(file, func, line, 0);
+            T tmp(msg);
+            throw tmp;
         }
 
         void _log(const char* file, std::string const& func, long line, unsigned int level, std::string const& msg);
@@ -162,7 +181,7 @@ private:
 
     struct stackInfo {
         const char* file;
-        std::string const& func;
+        std::string func;
         long line;
         std::vector<std::string> params;
     };
@@ -172,7 +191,7 @@ private:
         bool destroy_by_logger;
     };
 
-    std::stack<stackInfo> stackTr;
+    std::vector<stackInfo> stackTr;
     std::list<HandlerInfo> handlers;
 
     unsigned int level;

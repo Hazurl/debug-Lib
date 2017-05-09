@@ -8,19 +8,31 @@ using namespace haz;
 Logger& logger = Logger::get("main");
 
 namespace test {
-void thing () {
-    logger.entering({});
+void thing (bool thr) {
+    if (thr)
+        logger.entering({"true"});
+    else
+        logger.entering({ "false"});
     logger.debug("inside function thing from namespace test");
-    logger.stackTrace();
-    logger.exiting();
-    logger.exiting("ok");
+    logger.stackTrace(0);
+    logger.warn("An exception may occur");
+    if (thr)
+        logger.throwException(std::runtime_error, "This is a bug !");
+    logger.exiting("void");
+}
+void other () {
+    logger.entering({});
+    logger.stackTrace(0);
+    logger.info("calling \"thing\"");
+    thing(true);
+    logger.exiting("void");
 }
 };
 
-int main (int argc, char **argv) {
-
+int main (int , char **) {
+    try {
+    logger.addHandler( (new FileHandler("out.txt", true))->color(true) );
     logger.addHandler( (new ConsoleHandler())->color(true) );
-    //logger.addHandler(new FileHandler("../loggerv3.txt"));
 
     logger.setColorsLevel(
         {
@@ -35,7 +47,13 @@ int main (int argc, char **argv) {
 
     logger.error("with maccro");
     logger.log(Level::CONFIG, "config ok !");
-    test::thing();
+    logger.trace("calling \"thing\" then \"other\"");
+    test::thing(false);
+    test::other();
+
+    } catch ( std::runtime_error const& e ) {
+        std::cout << "terminate called after throwing an instance of 'std::runtime_error' " << std::endl << "what(): " << e.what() << std::endl;
+    }
 
     return 0;
 }

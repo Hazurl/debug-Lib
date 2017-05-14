@@ -23,6 +23,15 @@ void thing (bool thr) {
 void other () {
     logger.entering({});
     logger.stackTrace(0);
+    logger.info("Something long");
+    long ii = 0;
+    while (ii++ < 1000) {
+        std::string s = "";
+        long i = 0;
+        while (i++ < 1000000)
+            s += ".";
+    }
+
     logger.info("calling \"thing\"");
     thing(true);
     logger.exiting("void");

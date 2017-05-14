@@ -19,9 +19,9 @@ std::string Level::to_string(unsigned int i) {
 // ===== HANDLER =====
 
 Handler::Handler () : _color(true), _indentation(2), 
-    _commonFormat("{col}from {func} ({line}) {bld}{lvl}{clr} : {msg}"),
-    _exFormat("{red}{bld}{udl}/!\\\\ Exception{clr} >> {msg}"),
-    _stackFormat("{endl}{grn}{bld}{udl}Stack Trace{clr} >>{endl}{beg}\t- {func} AT {line} ({file}){endl}{end}{endl}{endl}"),
+    _commonFormat("[{day}/{mon}/{year} {hour}:{min}:{sec},{mil} {mic}] {col}from {func} ({line}) {bld}{lvl}{clr} : {msg}"),
+    _exFormat("════════════════════════════════════════════════════════════════════════════════════════════════════{endl}[{day}/{mon}/{year} {hour}:{min}:{sec},{mil} {mic}] {red}{bld}/!\\\\ {udl}Exception{clr} >> {msg}"),
+    _stackFormat("{endl}\t\t═════{clr} {grn}{bld}Stack Trace{clr} ═════{clr}{endl}{beg}({hour}:{min}:{sec},{mil} {mic}) {func} AT {line} ({file}){endl}{end}{endl}"),
     _enteringFormat("{grn}{bld}Entering{clr} {func} ({bld}{msg}{clr})"),
     _exitingFormat("{grn}{bld}Exiting{clr} {func} (return {bld}{msg}{clr})") {}
 Handler::~Handler() {}
@@ -101,53 +101,57 @@ void Handler::write(Message const& msg, std::string const& fmt) {
             if (var == "udl" && _color)
                 out += UDL;
 
-            time_t rawtime;
-            time(&rawtime);
-            tm* t = localtime(&rawtime);
-
             if (var == "hour") {
-                if (t->tm_hour < 10)
+                if (msg.time.tm_hour < 10)
                     out += '0';
-                out += std::to_string(t->tm_hour);
+                out += std::to_string(msg.time.tm_hour);
             }
 
             if (var == "min") {
-                if (t->tm_min < 10)
+                if (msg.time.tm_min < 10)
                     out += '0';
-                out += std::to_string(t->tm_min);
+                out += std::to_string(msg.time.tm_min);
             }
 
             if (var == "sec") {
-                if (t->tm_sec < 10)
+                if (msg.time.tm_sec < 10)
                     out += '0';
-                out += std::to_string(t->tm_sec);
+                out += std::to_string(msg.time.tm_sec);
             }
 
             if (var == "mic") {
-                struct timeval tv;
-                gettimeofday (&tv, nullptr);
-                out += std::to_string(tv.tv_usec % 1000);
+                int mic = msg.usec % 1000;
+                if (mic < 100) {
+                    out += '0';
+                    if (mic < 10)
+                        out += '0';
+                }
+                out += std::to_string(mic);
             }
 
             if (var == "mil") {
-                struct timeval tv;
-                gettimeofday (&tv, nullptr);
-                out += std::to_string(tv.tv_usec / 1000);
+                int mil = msg.usec / 1000;
+                if (mil < 100) {
+                    out += '0';
+                    if (mil < 10)
+                        out += '0';
+                }
+                out += std::to_string(mil);
             }
 
             if (var == "year")
-                out += std::to_string(1900 + t->tm_year);
+                out += std::to_string(1900 + msg.time.tm_year);
 
             if (var == "mon") {
-                if (t->tm_mon < 10)
+                if (msg.time.tm_mon < 10)
                     out += '0';
-                out += std::to_string(t->tm_mon);
+                out += std::to_string(msg.time.tm_mon);
             }
 
             if (var == "day") {
-                if (t->tm_mday < 10)
+                if (msg.time.tm_mday < 10)
                     out += '0';
-                out += std::to_string(t->tm_mday);
+                out += std::to_string(msg.time.tm_mday);
             }
 
             if (var == "clr" && _color)
@@ -269,53 +273,57 @@ void Handler::writeMulti(std::vector<Message> const& msgs, std::string const& fm
                     out += UDL;
                 
                 else {
-                    time_t rawtime;
-                    time(&rawtime);
-                    tm* t = localtime(&rawtime);
-
                     if (var == "hour") {
-                        if (t->tm_hour < 10)
+                        if (msg.time.tm_hour < 10)
                             out += '0';
-                        out += std::to_string(t->tm_hour);
+                        out += std::to_string(msg.time.tm_hour);
                     }
 
-                    else if (var == "min") {
-                        if (t->tm_min < 10)
+                    if (var == "min") {
+                        if (msg.time.tm_min < 10)
                             out += '0';
-                        out += std::to_string(t->tm_min);
+                        out += std::to_string(msg.time.tm_min);
                     }
 
-                    else if (var == "sec") {
-                        if (t->tm_sec < 10)
+                    if (var == "sec") {
+                        if (msg.time.tm_sec < 10)
                             out += '0';
-                        out += std::to_string(t->tm_sec);
+                        out += std::to_string(msg.time.tm_sec);
                     }
 
-                    else if (var == "mic") {
-                        struct timeval tv;
-                        gettimeofday (&tv, nullptr);
-                        out += std::to_string(tv.tv_usec % 1000);
-                    }
-
-                    else if (var == "mil") {
-                        struct timeval tv;
-                        gettimeofday (&tv, nullptr);
-                        out += std::to_string(tv.tv_usec / 1000);
-                    }
-
-                    else if (var == "year")
-                        out += std::to_string(1900 + t->tm_year);
-
-                    else if (var == "mon") {
-                        if (t->tm_mon < 10)
+                    if (var == "mic") {
+                        int mic = msg.usec % 1000;
+                        if (mic < 100) {
                             out += '0';
-                        out += std::to_string(t->tm_mon);
+                            if (mic < 10)
+                                out += '0';
+                        }
+                        out += std::to_string(mic);
                     }
 
-                    else if (var == "day") {
-                        if (t->tm_mday < 10)
+                    if (var == "mil") {
+                        int mil = msg.usec / 1000;
+                        if (mil < 100) {
                             out += '0';
-                        out += std::to_string(t->tm_mday);
+                            if (mil < 10)
+                                out += '0';
+                        }
+                        out += std::to_string(mil);
+                    }
+
+                    if (var == "year")
+                        out += std::to_string(1900 + msg.time.tm_year);
+
+                    if (var == "mon") {
+                        if (msg.time.tm_mon < 10)
+                            out += '0';
+                        out += std::to_string(msg.time.tm_mon);
+                    }
+
+                    if (var == "day") {
+                        if (msg.time.tm_mday < 10)
+                            out += '0';
+                        out += std::to_string(msg.time.tm_mday);
                     }
                 }
 
@@ -355,7 +363,6 @@ std::string Handler::writeLoop(std::vector<Message> const& msgs, std::string con
 
     std::string out = "";
     std::string var = "";
-
 
     for (auto msg = ++(msgs.begin()); msg != msgs.end(); ++msg) {
         for (char const& c : fmt) {
@@ -425,53 +432,57 @@ std::string Handler::writeLoop(std::vector<Message> const& msgs, std::string con
                 if (var == "udl" && _color)
                     out += UDL;
 
-                time_t rawtime;
-                time(&rawtime);
-                tm* t = localtime(&rawtime);
-
                 if (var == "hour") {
-                    if (t->tm_hour < 10)
+                    if (msg->time.tm_hour < 10)
                         out += '0';
-                    out += std::to_string(t->tm_hour);
+                    out += std::to_string(msg->time.tm_hour);
                 }
 
                 if (var == "min") {
-                    if (t->tm_min < 10)
+                    if (msg->time.tm_min < 10)
                         out += '0';
-                    out += std::to_string(t->tm_min);
+                    out += std::to_string(msg->time.tm_min);
                 }
 
                 if (var == "sec") {
-                    if (t->tm_sec < 10)
+                    if (msg->time.tm_sec < 10)
                         out += '0';
-                    out += std::to_string(t->tm_sec);
+                    out += std::to_string(msg->time.tm_sec);
                 }
 
                 if (var == "mic") {
-                    struct timeval tv;
-                    gettimeofday (&tv, nullptr);
-                    out += std::to_string(tv.tv_usec % 1000);
+                    int mic = msg->usec % 1000;
+                    if (mic < 100) {
+                        out += '0';
+                        if (mic < 10)
+                            out += '0';
+                    }
+                    out += std::to_string(mic);
                 }
 
                 if (var == "mil") {
-                    struct timeval tv;
-                    gettimeofday (&tv, nullptr);
-                    out += std::to_string(tv.tv_usec / 1000);
+                    int mil = msg->usec / 1000;
+                    if (mil < 100) {
+                        out += '0';
+                        if (mil < 10)
+                            out += '0';
+                    }
+                    out += std::to_string(mil);
                 }
 
                 if (var == "year")
-                    out += std::to_string(1900 + t->tm_year);
+                    out += std::to_string(1900 + msg->time.tm_year);
 
                 if (var == "mon") {
-                    if (t->tm_mon < 10)
+                    if (msg->time.tm_mon < 10)
                         out += '0';
-                    out += std::to_string(t->tm_mon);
+                    out += std::to_string(msg->time.tm_mon);
                 }
 
                 if (var == "day") {
-                    if (t->tm_mday < 10)
+                    if (msg->time.tm_mday < 10)
                         out += '0';
-                    out += std::to_string(t->tm_mday);
+                    out += std::to_string(msg->time.tm_mday);
                 }
 
                 if (var == "clr" && _color)
@@ -572,7 +583,9 @@ bool Logger::isEnabled(unsigned int l) {
 }
 
 void Logger::_entering(const char* file, std::string const& func, long line, std::vector<std::string> params) {
-    stackTr.push_back( {file, func, line, params} );
+    tm t = getTime();
+    long usec = get_usec();
+    stackTr.push_back( {file, func, line, params, usec, t } );
     std::string ps = "";
     bool first = true;
     for (auto p : params) {
@@ -585,12 +598,12 @@ void Logger::_entering(const char* file, std::string const& func, long line, std
     if (ps == "")
         ps = "no_args";
     for (auto& hi : handlers)
-        hi.h->enter( {ps, func, file, line, level, Color::GREEN });
+        hi.h->enter( {ps, func, file, line, level, Color::GREEN, usec, t });
 }
 
-void Logger::_exiting(const char* , std::string const& , long line, std::string const& obj) {
+void Logger::_exiting(const char* /*file*/, std::string const& /*func*/, long line, std::string const& obj) {
     for (auto& hi : handlers)
-        hi.h->exit({obj, stackTr.back().func, stackTr.back().file, line, level, Color::GREEN });
+        hi.h->exit({obj, stackTr.back().func, stackTr.back().file, line, level, Color::GREEN, get_usec(), getTime() });
     
     stackTr.pop_back();
 }
@@ -600,10 +613,10 @@ void Logger::_stackTrace(const char* file, std::string const& func, long line, i
     auto itr = stackTr.rbegin();
     bool first = true;
     std::vector<Message> msgs;
-    msgs.push_back({"", func, file, line, level, Color::GREEN });
+    msgs.push_back({"", func, file, line, level, Color::GREEN, get_usec(), getTime() });
     unsigned int num = 0;
     while (itr != stackTr.rend() && (--depth) != 0) {
-        msgs.push_back({ std::to_string(num++), itr->func, itr->file, itr->line, level, Color::GREEN });
+        msgs.push_back({ std::to_string(num++), itr->func, itr->file, itr->line, level, Color::GREEN, itr->usec, itr->time });
 
         if (!first)
             ps += ", ";
@@ -620,7 +633,7 @@ void Logger::_stackTrace(const char* file, std::string const& func, long line, i
 
 void Logger::_log(const char* file, std::string const& func, long line, unsigned int level, std::string const& msg) {
     for (auto& hi : handlers)
-        hi.h->common( {msg, func, file, line, level, getColor(level) } );
+        hi.h->common( {msg, func, file, line, level, getColor(level), get_usec(), getTime() } );
 }
 
 void Logger::_error(const char* file, std::string const& func, long line, std::string const& msg) {

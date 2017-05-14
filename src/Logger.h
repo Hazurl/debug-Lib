@@ -65,6 +65,8 @@ struct Message {
     long line;
     unsigned int level;
     const char* color;
+    long usec;
+    tm time;
 };
 
 
@@ -161,7 +163,7 @@ public:
         template<class T>
         void _throwException (const char* file, std::string const& func, long line, std::string const& msg) {
             for (auto& hi : handlers)
-                hi.h->exception( {msg, func, file, line, level, Color::RED });
+                hi.h->exception( {msg, func, file, line, level, Color::RED, get_usec(), getTime() });
             this->_stackTrace(file, func, line, 0);
             T tmp(msg);
             throw tmp;
@@ -177,6 +179,18 @@ public:
 
 private:
 
+    tm getTime() {
+        time_t rawtime;
+        time(&rawtime);
+        return *localtime(&rawtime);
+    }
+
+    long get_usec() {
+        struct timeval tv;
+        gettimeofday (&tv, nullptr);
+        return tv.tv_usec;
+    }
+
     static std::map<const char*, Logger> loggers;
 
     struct stackInfo {
@@ -184,6 +198,8 @@ private:
         std::string func;
         long line;
         std::vector<std::string> params;
+        long usec;
+        tm time;
     };
 
     struct HandlerInfo {

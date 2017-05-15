@@ -16,21 +16,21 @@ void thing (bool thr) {
     logger.debug("inside function thing from namespace test");
     logger.stackTrace(0);
     logger.warn("An exception may occur");
-    if (thr)
-        logger.throwException(std::runtime_error, "This is a bug !");
+    if (thr) logger.throwException(std::runtime_error, "This is a bug !");
     logger.exiting("void");
+    return;
 }
 void other () {
     logger.entering({});
     logger.stackTrace(0);
-    logger.info("Something long");
+    /*logger.info("Something long");
     long ii = 0;
     while (ii++ < 1000) {
         std::string s = "";
         long i = 0;
         while (i++ < 1000000)
             s += ".";
-    }
+    }*/
 
     logger.info("calling \"thing\"");
     thing(true);
@@ -53,6 +53,9 @@ int main (int , char **) {
             { Color::CYAN, 100 }
         }
     );
+    logger.warn("Begin now");
+    logger.entering({});
+    logger.stackTrace(0);
 
     logger.error("with maccro");
     logger.log(Level::CONFIG, "config ok !");
@@ -62,7 +65,10 @@ int main (int , char **) {
 
     } catch ( std::runtime_error const& e ) {
         std::cout << "terminate called after throwing an instance of 'std::runtime_error' " << std::endl << "what(): " << e.what() << std::endl;
-    }
+    } catch ( std::exception const& e) { throw e; }
+
+    logger.exiting("0");
+    logger.warn("End now");
 
     return 0;
 }

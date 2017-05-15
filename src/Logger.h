@@ -73,18 +73,18 @@ struct Message {
 class Format {
 public:
     Format(std::string const& fmt);
-    ~Format();
+    //~Format();
 
-    std::string formate(std::vector<Message> msgs, bool with_color);
+    std::string formate(std::vector<Message> msgs, bool with_color) const;
 
 private:
     class Var { 
     public:
-        static enum class Type {
+        enum class Type {
             STRING, FUNC, FILE, LINE, LEVEL,
             DAY, MONTH, YEAR, HOURS, MIN, SEC, MIL, USEC,
             MSG, BEG, END, NEW_LINE, POS,
-            COLOR, META
+            COLOR, META, CLEAR
         };
 
         Type type = Type::STRING;
@@ -100,17 +100,24 @@ private:
 
     void build_abstract_msg(std::string const& fmt);
     Var getMetaVar(std::string const& fmt, unsigned int& pos);
+    std::string fill(std::string str, char filler, unsigned int size) const;
 };
 
 
 class Handler {
 public:
     Handler* color(bool b) { _color = b; return this; }
-    Handler* commonFormat(std::string const& f) { _commonFormat = f; return this; }
-    Handler* exFormat(std::string const& f) { _exFormat = f; return this; }
-    Handler* stackFormat(std::string const& f) { _stackFormat = f; return this; }
-    Handler* enteringFormat(std::string const& f) { _enteringFormat = f; return this; }
-    Handler* exitingFormat(std::string const& f) { _exitingFormat = f; return this; }
+    
+    Handler* commonFormat(Format const& f) { _commonFormat = f; return this; }
+    Handler* exFormat(Format const& f) { _exFormat = f; return this; }
+    Handler* stackFormat(Format const& f) { _stackFormat = f; return this; }
+    Handler* enteringFormat(Format const& f) { _enteringFormat = f; return this; }
+    Handler* exitingFormat(Format const& f) { _exitingFormat = f; return this; }
+    Handler* commonFormat(std::string const& f) { _commonFormat = Format(f); return this; }
+    Handler* exFormat(std::string const& f) { _exFormat = Format(f); return this; }
+    Handler* stackFormat(std::string const& f) { _stackFormat = Format(f); return this; }
+    Handler* enteringFormat(std::string const& f) { _enteringFormat = Format(f); return this; }
+    Handler* exitingFormat(std::string const& f) { _exitingFormat = Format(f); return this; }
 
     Handler ();
     virtual ~Handler();
@@ -126,15 +133,14 @@ protected:
 
 private:
     bool _color;
-    std::string _commonFormat;
-    std::string _exFormat;
-    std::string _stackFormat;
-    std::string _enteringFormat;
-    std::string _exitingFormat;
+    Format _commonFormat;
+    Format _exFormat;
+    Format _stackFormat;
+    Format _enteringFormat;
+    Format _exitingFormat;
 
-    void write (Message const& msg, std::string const& fmt);
-    void writeMulti (std::vector<Message> const& msgs, std::string const& fmt);
-    std::string writeLoop (std::vector<Message> const& msgs, std::string const& fmt);
+    void write (Message const& msg, Format const& fmt);
+    void writeMulti (std::vector<Message> const& msgs, Format const& fmt);
 };
 
 class ConsoleHandler : public Handler {

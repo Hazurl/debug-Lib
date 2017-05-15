@@ -70,10 +70,42 @@ struct Message {
 };
 
 
+class Format {
+public:
+    Format(std::string const& fmt);
+    ~Format();
+
+    std::string formate(std::vector<Message> msgs, bool with_color);
+
+private:
+    class Var { 
+    public:
+        static enum class Type {
+            STRING, FUNC, FILE, LINE, LEVEL,
+            DAY, MONTH, YEAR, HOURS, MIN, SEC, MIL, USEC,
+            MSG, BEG, END, NEW_LINE, POS,
+            COLOR, META
+        };
+
+        Type type = Type::STRING;
+        std::string str = "";
+        long pos = 0;
+
+        Var(std::string const& s) : type(Type::STRING), str(s) {}
+        Var(long const& l) : type(Type::POS), pos(l) {}
+        Var(Type const& t, std::string const& s = "") : type(t), str(s) {}
+    };
+
+    std::vector<Var> abstract_msg;
+
+    void build_abstract_msg(std::string const& fmt);
+    Var getMetaVar(std::string const& fmt, unsigned int& pos);
+};
+
+
 class Handler {
 public:
     Handler* color(bool b) { _color = b; return this; }
-    Handler* indentation(unsigned int i) { _indentation = i; return this; }
     Handler* commonFormat(std::string const& f) { _commonFormat = f; return this; }
     Handler* exFormat(std::string const& f) { _exFormat = f; return this; }
     Handler* stackFormat(std::string const& f) { _stackFormat = f; return this; }
@@ -94,7 +126,6 @@ protected:
 
 private:
     bool _color;
-    unsigned int _indentation;
     std::string _commonFormat;
     std::string _exFormat;
     std::string _stackFormat;
@@ -217,19 +248,18 @@ private:
     std::vector< std::pair<const char*, unsigned int> > colorsLevel;
 };
 
-static std::string getScopedClassMethod( std::string thePrettyFunction )
-{
-  size_t index = thePrettyFunction . find( "(" );
+static std::string getScopedClassMethod( std::string thePrettyFunction ) {
+  size_t index = thePrettyFunction.find( "(" );
   if ( index == std::string::npos )
     return thePrettyFunction;  // Degenerate case 
 
-  thePrettyFunction . erase( index );
+  thePrettyFunction.erase( index );
 
-  index = thePrettyFunction . rfind( " " );
+  index = thePrettyFunction.rfind( " " );
   if ( index == std::string::npos )
     return thePrettyFunction;  // Degenerate case 
 
-  thePrettyFunction . erase( 0, index + 1 );
+  thePrettyFunction.erase( 0, index + 1 );
 
   return thePrettyFunction;   // The scoped class name. 
 }

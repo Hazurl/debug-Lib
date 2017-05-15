@@ -15,10 +15,185 @@ std::string Level::to_string(unsigned int i) {
                         return "detail";
 }
 
+// ===== FORMAT =====
+
+Format::Format(std::string const& fmt) {
+    build_abstract_msg(fmt);
+}
+
+void Format::build_abstract_msg(std::string const& fmt) {
+    abstract_msg = {};
+
+    bool escape = false;
+    std::string cur = "";
+    unsigned int size = fmt.size();
+
+    for (unsigned int pos = 0; pos < size; pos++) {
+        char c = fmt[pos];
+        if (escape) {
+            cur += std::string(1, c);
+            escape = false;
+        } else if (c == '{') {
+            abstract_msg.push_back( Var(cur) );
+            cur = "";
+            abstract_msg.push_back( getMetaVar(fmt, pos) );
+        } else if (c == '\\') {
+            escape = true;
+        }
+    }
+
+    if(cur != "")
+        abstract_msg.push_back( Var(cur) );
+}
+
+Var Format::getMetaVar(std::string const& fmt, unsigned int& pos) {
+    ++pos;
+    unsigned int size = fmt.size();
+    std::string meta = "";
+    for (; pos < size; pos++) {
+        char c = fmt[pos];
+        if (escape) {
+            escape = false;
+            meta += c;
+        } else if (c == '\\')
+            escape = true;
+        else if (c == '}') {
+            break;
+        } else
+            meta += c;
+    }
+    if (pos++ >= size)
+        return Var("{" + meta);
+
+    if (meta == "func" || meta == "function")
+                                                                        return Var(Var::Type::FUNC);
+    if (meta == "file")
+                                                                        return Var(Var::Type::FILE);
+    if (meta == "line")
+                                                                        return Var(Var::Type::LINE);
+    if (meta == "lvl" || meta == "level")
+                                                                        return Var(Var::Type::LEVEL);
+    if (meta == "day")
+                                                                        return Var(Var::Type::DAY);
+    if (meta == "mon" || meta == "month")
+                                                                        return Var(Var::Type::MONTH);
+    if (meta == "year")
+                                                                        return Var(Var::Type::YEAR);
+    if (meta == "hour")
+                                                                        return Var(Var::Type::HOURS);
+    if (meta == "min" || meta == "minute")
+                                                                        return Var(Var::Type::MIN);
+    if (meta == "sec" || meta == "second")
+                                                                        return Var(Var::Type::SEC);
+    if (meta == "mil" || meta == "milli" || meta == "millisecond")
+                                                                        return Var(Var::Type::MIL);
+    if (meta == "mic" || meta == "microsec" || meta == "microsecond")
+                                                                        return Var(Var::Type::USEC);
+    if (meta == "msg" || meta == "message")
+                                                                        return Var(Var::Type::MSG);
+    if (meta == "beg" || meta == "begin")
+                                                                        return Var(Var::Type::BEG);
+    if (meta == "end")
+                                                                        return Var(Var::Type::END);
+    if (meta == "n" || meta == "endl" || meta == "newline")
+                                                                        return Var(Var::Type::NEW_LINE);
+    if (meta == "color" || meta == "col")
+                                                                        return Var(Var::Type::COLOR);
+    if (meta == "red")
+                                                                        return Var(Var::Type::META, Color::RED);
+    if (meta == "grn" || meta == "green")
+                                                                        return Var(Var::Type::META, Color::GREEN);
+    if (meta == "blu" || meta == "blue")
+                                                                        return Var(Var::Type::META, Color::BLUE);
+    if (meta == "mag" || meta == "magenta")
+                                                                        return Var(Var::Type::META, Color::MAGENTA);
+    if (meta == "cya" || meta == "cyan")
+                                                                        return Var(Var::Type::META, Color::CYAN);
+    if (meta == "yel" || meta == "yellow")
+                                                                        return Var(Var::Type::META, Color::YELLOW);
+    if (meta == "whi" || meta == "white")
+                                                                        return Var(Var::Type::META, Color::WHITE);
+    if (meta == "bld" || meta == "bold")
+                                                                        return Var(Var::Type::META, BLD);
+    if (meta == "udl" || meta == "undl" || meta == "underline")
+                                                                        return Var(Var::Type::META, UDL);
+    try {
+                                                                        return Var(std::stol(meta)); 
+    } catch (std::invalid_argument const&) {}
+                                                                        return Var("");
+}
+
+std::string Format::formate(std::vector<Message> msgs, bool with_color) {
+    if (msgs.empty())
+        return;
+
+    std::string out = "";
+    Message& main = msgs[0];
+    long msg_pos = 0;
+    Message& cur = msgs[msg_pos];
+
+    bool end_by_endl = true;
+    bool go_to_end = false;
+
+    decltype(abstract_msg)::iterator beg;
+
+    for (auto itr = abstract_msg.begin(); itr != abstract_msg.end(); ++itr) {
+        end_by_endl = false;
+/*
+            STRING, FUNC, FILE, LINE, LEVEL,
+            DAY, MONTH, YEAR, HOURS, MIN, SEC, MIL, USEC,
+            MSG, BEG, END, NEW_LINE, POS,
+            COLOR, META
+*/
+        if (go_to_end) {
+            if (itr->type == Var::Type::END) {
+                go_to_end = false;
+                itr = beg;
+            } else 
+                continue;
+        }
+
+        switch(itr->type) {
+            case Var::Type::STRING : out += itr->str; break;
+            case Var::Type::FUNC : out += cur.func; break;
+            case Var::Type::FILE : out += cur.file; break;
+            case Var::Type::LINE : out += cur.line; break;
+            case Var::Type::LEVEL : out += cur.func; break;
+            case Var::Type::DAY : out += cur.time.tm_mday; break;
+            case Var::Type::MONTH : out += cur.time.tm_mon; break;
+            case Var::Type::YEAR : out += cur.time.tm_year; break;
+            case Var::Type::HOURS : out += cur.time.tm_hour; break;
+            case Var::Type::MIN : out += cur.time.tm_min; break;
+            case Var::Type::SEC : out += cur.time.tm_sec; break;
+            case Var::Type::MIL : out += std::to_string(cur.usec / 1000); break;
+            case Var::Type::USEC : out += std::to_string(cur.usec % 1000); break;
+            case Var::Type::MSG : out += cur.msg; break;
+            case Var::Type::NEW_LINE : out += "\n"; end_by_endl = true; break;
+            case Var::Type::POS : for (; itr->pos > out.size(); out += " "); break;
+            case Var::Type::COLOR : if (with_color) out += main.color; break;
+            case Var::Type::META : if (with_color) out += itr->str; break;
+
+            case Var::Type::BEG:
+                beg = itr;
+                if (msg_pos < msgs.size())
+                    cur = msgs[++msg_pos];
+                else
+                    go_to_end = true;
+            break;
+
+            default: break;
+        }
+    }
+
+    if (! end_by_endl)
+        out += "\n";
+    return out;
+}
+
 
 // ===== HANDLER =====
 
-Handler::Handler () : _color(true), _indentation(2), 
+Handler::Handler () : _color(true),
     _commonFormat("[{day}/{mon}/{year} {hour}:{min}:{sec},{mil} {mic}] {col}from {func} ({line}) {bld}{lvl}{clr} : {msg}"),
     _exFormat("════════════════════════════════════════════════════════════════════════════════════════════════════{endl}[{day}/{mon}/{year} {hour}:{min}:{sec},{mil} {mic}] {red}{bld}/!\\\\ {udl}Exception{clr} >> {msg}"),
     _stackFormat("{endl}\t\t═════{clr} {grn}{bld}Stack Trace{clr} ═════{clr}{endl}{beg}({hour}:{min}:{sec},{mil} {mic}) {func} AT {line} ({file}){endl}{end}{endl}"),
@@ -39,7 +214,7 @@ void Handler::write(Message const& msg, std::string const& fmt) {
             if (c >= '0' && c <= '9') {
                 var += c;
             } else if (c == '}') {
-                for (unsigned int i = std::stoi(var); i > out.size(); out += ' ')
+                for (unsigned int i = std::stoi(var); i > out.size(); out += ' ');
                 num = false;
                 var = "";
             } else {
@@ -586,17 +761,18 @@ void Logger::_entering(const char* file, std::string const& func, long line, std
     tm t = getTime();
     long usec = get_usec();
     stackTr.push_back( {file, func, line, params, usec, t } );
-    std::string ps = "";
-    bool first = true;
-    for (auto p : params) {
-        if (!first)
-            ps += ", ";
-        else
-            first = false;
-        ps += p;
-    }
-    if (ps == "")
-        ps = "no_args";
+    if (!params.empty()) {
+        std::string ps = "";
+        bool first = true;
+        for (auto p : params) {
+            if (!first)
+                ps += ", ";
+            else
+                first = false;
+            ps += p;
+        }
+    } else 
+        ps = "void";
     for (auto& hi : handlers)
         hi.h->enter( {ps, func, file, line, level, Color::GREEN, usec, t });
 }
@@ -632,6 +808,7 @@ void Logger::_stackTrace(const char* file, std::string const& func, long line, i
 }
 
 void Logger::_log(const char* file, std::string const& func, long line, unsigned int level, std::string const& msg) {
+    if (this->level >= level);
     for (auto& hi : handlers)
         hi.h->common( {msg, func, file, line, level, getColor(level), get_usec(), getTime() } );
 }

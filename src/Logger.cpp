@@ -70,6 +70,8 @@ Format::Var Format::getMetaVar(std::string const& fmt, unsigned int& pos) {
     if (pos >= size)
         return Format::Var("{" + meta);
 
+    if (meta == "log" || meta == "logger" || meta == "name")
+                                                                        return Format::Var(Format::Var::Type::LOG_NAME);
     if (meta == "func" || meta == "function")
                                                                         return Format::Var(Format::Var::Type::FUNC);
     if (meta == "file")
@@ -161,6 +163,7 @@ std::string Format::formate(std::vector<Message> msgs, bool with_color) const {
 
         switch(itr->type) {
             case Format::Var::Type::STRING : out += itr->str; break;
+            case Format::Var::Type::LOG_NAME : out += main.name; break;
             case Format::Var::Type::FUNC : out += cur.func; break;
             case Format::Var::Type::FILE : out += cur.file; break;
             case Format::Var::Type::LINE : out += std::to_string(cur.line); break;
@@ -212,7 +215,7 @@ std::string Format::fill(std::string str, char filler, unsigned int size) const 
 Handler::Handler () : _color(true),
     _commonFormat("[{day}/{mon}/{year} {hour}:{min}:{sec},{mil} {mic}] {col}from {func} ({line}) {bld}{lvl}{clr} : {msg}"),
     _exFormat("═════════════════════════════════════════════════════════════════════════════════════════════════════{endl}[{day}/{mon}/{year} {hour}:{min}:{sec},{mil} {mic}] {red}{bld}/!\\\\ {udl}Exception{clr} >> {msg}"),
-    _stackFormat("{endl}\t\t═════{clr} {grn}{bld}Stack Trace{clr} ═════{clr}{endl}{beg}({hour}:{min}:{sec},{mil} {mic}) {udl}{func}{clr}, line {line} ({file}){endl}{end}{endl}"),
+    _stackFormat("{endl}{bld}{name}{clr}{30}═════{clr} {grn}{bld}Stack Trace{clr} ═════{clr}{endl}{beg}({hour}:{min}:{sec},{mil} {mic}) {udl}{func}{clr}, line {line} ({file}){endl}{end}{endl}"),
     _enteringFormat("{grn}{bld}Entering{clr} {func} ({bld}{msg}{clr})"),
     _exitingFormat("{grn}{bld}Exiting{clr} {func} (return {bld}{msg}{clr})") {}
 Handler::~Handler() {}
@@ -316,12 +319,12 @@ void Logger::_entering(const char* file, std::string const& func, long line, std
     } else 
         ps = "void";
     for (auto& hi : handlers)
-        hi.h->enter( {ps, func, file, line, level, Color::GREEN, usec, t });
+        hi.h->enter( {name, ps, func, file, line, level, Color::GREEN, usec, t });
 }
 
 void Logger::_exiting(const char* /*file*/, std::string const& /*func*/, long line, std::string const& obj) {
     for (auto& hi : handlers)
-        hi.h->exit({obj, stackTr.back().func, stackTr.back().file, line, level, Color::GREEN, get_usec(), getTime() });
+        hi.h->exit({name, obj, stackTr.back().func, stackTr.back().file, line, level, Color::GREEN, get_usec(), getTime() });
     
     stackTr.pop_back();
 }
@@ -331,10 +334,10 @@ void Logger::_stackTrace(const char* file, std::string const& func, long line, i
     auto itr = stackTr.rbegin();
     bool first = true;
     std::vector<Message> msgs;
-    msgs.push_back({"", func, file, line, level, Color::GREEN, get_usec(), getTime() });
+    msgs.push_back({name, "", func, file, line, level, Color::GREEN, get_usec(), getTime() });
     unsigned int num = 0;
     while (itr != stackTr.rend() && (--depth) != 0) {
-        msgs.push_back({ std::to_string(num++), itr->func, itr->file, itr->line, level, Color::GREEN, itr->usec, itr->time });
+        msgs.push_back({ name, std::to_string(num++), itr->func, itr->file, itr->line, level, Color::GREEN, itr->usec, itr->time });
 
         if (!first)
             ps += ", ";
@@ -352,7 +355,7 @@ void Logger::_stackTrace(const char* file, std::string const& func, long line, i
 void Logger::_log(const char* file, std::string const& func, long line, unsigned int level, std::string const& msg) {
     if (this->level <= level)
         for (auto& hi : handlers)
-            hi.h->common( {msg, func, file, line, level, getColor(level), get_usec(), getTime() } );
+            hi.h->common( {name, msg, func, file, line, level, getColor(level), get_usec(), getTime() } );
 }
 
 void Logger::_error(const char* file, std::string const& func, long line, std::string const& msg) {

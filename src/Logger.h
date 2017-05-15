@@ -59,6 +59,7 @@ public:
 };
 
 struct Message {
+    const char* name;
     std::string msg;
     std::string func;
     std::string file;
@@ -81,7 +82,7 @@ private:
     class Var { 
     public:
         enum class Type {
-            STRING, FUNC, FILE, LINE, LEVEL,
+            STRING, LOG_NAME, FUNC, FILE, LINE, LEVEL,
             DAY, MONTH, YEAR, HOURS, MIN, SEC, MIL, USEC,
             MSG, BEG, END, NEW_LINE, POS,
             COLOR, META, CLEAR
@@ -200,7 +201,7 @@ public:
         template<class T>
         void _throwException (const char* file, std::string const& func, long line, std::string const& msg) {
             for (auto& hi : handlers)
-                hi.h->exception( {msg, func, file, line, level, Color::RED, get_usec(), getTime() });
+                hi.h->exception( {name, msg, func, file, line, level, Color::RED, get_usec(), getTime() });
             this->_stackTrace(file, func, line, 0);
             T tmp(msg);
             throw tmp;

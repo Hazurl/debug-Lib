@@ -318,13 +318,15 @@ void Logger::_entering(const char* file, std::string const& func, long line, std
         }
     } else 
         ps = "void";
-    for (auto& hi : handlers)
-        hi.h->enter( {name, ps, func, file, line, level, Color::GREEN, usec, t });
+    if (this->level <= Level::TRACE)
+        for (auto& hi : handlers)
+            hi.h->enter( {name, ps, func, file, line, level, Color::GREEN, usec, t });
 }
 
 void Logger::_exiting(const char* /*file*/, std::string const& /*func*/, long line, std::string const& obj) {
-    for (auto& hi : handlers)
-        hi.h->exit({name, obj, stackTr.back().func, stackTr.back().file, line, level, Color::GREEN, get_usec(), getTime() });
+    if (this->level <= Level::TRACE)
+        for (auto& hi : handlers)
+            hi.h->exit({name, obj, stackTr.back().func, stackTr.back().file, line, level, Color::GREEN, get_usec(), getTime() });
     
     stackTr.pop_back();
 }
@@ -348,8 +350,9 @@ void Logger::_stackTrace(const char* file, std::string const& func, long line, i
     }
 
     msgs[0].msg = ps;
-    for (auto& hi : handlers)
-        hi.h->stack( msgs );
+    if (this->level <= Level::TRACE)
+        for (auto& hi : handlers)
+            hi.h->stack( msgs );
 }
 
 void Logger::_log(const char* file, std::string const& func, long line, unsigned int level, std::string const& msg) {

@@ -36,12 +36,14 @@ class Level {
 public:
     static const unsigned int 
         OFF = 1000,
+        EXCEPTION = 700,
         ERROR = 600,
         WARNING = 500,
         CONFIG = 400,
         TRACE = 300,
         DEBUG = 200,
-        INFO = 100;
+        INFO = 100,
+        ALL = 0;
 
     static std::string to_string(unsigned int i);
 };
@@ -200,8 +202,9 @@ public:
 
         template<class T>
         void _throwException (const char* file, std::string const& func, long line, std::string const& msg) {
-            for (auto& hi : handlers)
-                hi.h->exception( {name, msg, func, file, line, level, Color::RED, get_usec(), getTime() });
+            if (this->level <= Level::EXCEPTION)
+                for (auto& hi : handlers)
+                    hi.h->exception( {name, msg, func, file, line, level, Color::RED, get_usec(), getTime() });
             this->_stackTrace(file, func, line, 0);
             T tmp(msg);
             throw tmp;
@@ -248,7 +251,7 @@ private:
     std::vector<stackInfo> stackTr;
     std::list<HandlerInfo> handlers;
 
-    unsigned int level;
+    unsigned int level = Level::ALL;
     const char* name;
 
     const char* getColor(unsigned int i);

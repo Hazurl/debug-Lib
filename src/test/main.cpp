@@ -23,14 +23,14 @@ void thing (bool thr) {
 void other () {
     logger.entering({});
     logger.stackTrace(0);
-    /*logger.info("Something long");
+    logger.info("Something long");
     long ii = 0;
     while (ii++ < 1000) {
         std::string s = "";
         long i = 0;
         while (i++ < 1000000)
             s += ".";
-    }*/
+    }
 
     logger.info("calling \"thing\"");
     thing(true);
@@ -54,6 +54,7 @@ int main (int , char **) {
         }
     );
     logger.warn("Begin now");
+    //logger.setLevel(Level::OFF);
     logger.entering({});
     logger.stackTrace(0);
 
@@ -65,9 +66,10 @@ int main (int , char **) {
 
     } catch ( std::runtime_error const& e ) {
         std::cout << "terminate called after throwing an instance of 'std::runtime_error' " << std::endl << "what(): " << e.what() << std::endl;
-    } catch ( std::exception const& e) { throw e; }
+    }
 
     logger.exiting("0");
+    logger.setLevel(Level::ALL);
     logger.warn("End now");
 
     return 0;

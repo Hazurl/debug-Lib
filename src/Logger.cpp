@@ -109,23 +109,23 @@ Format::Var Format::getMetaVar(std::string const& fmt, unsigned int& pos) {
     if (meta == "clear" || meta == "clr")
                                                                         return Format::Var(Format::Var::Type::CLEAR);
     if (meta == "red")
-                                                                        return Format::Var(Format::Var::Type::META, Color::RED);
+                                                                        return Format::Var(Format::Var::Type::META, Formatting::RED);
     if (meta == "grn" || meta == "green")
-                                                                        return Format::Var(Format::Var::Type::META, Color::GREEN);
+                                                                        return Format::Var(Format::Var::Type::META, Formatting::GREEN);
     if (meta == "blu" || meta == "blue")
-                                                                        return Format::Var(Format::Var::Type::META, Color::BLUE);
+                                                                        return Format::Var(Format::Var::Type::META, Formatting::BLUE);
     if (meta == "mag" || meta == "magenta")
-                                                                        return Format::Var(Format::Var::Type::META, Color::MAGENTA);
+                                                                        return Format::Var(Format::Var::Type::META, Formatting::MAGENTA);
     if (meta == "cya" || meta == "cyan")
-                                                                        return Format::Var(Format::Var::Type::META, Color::CYAN);
+                                                                        return Format::Var(Format::Var::Type::META, Formatting::CYAN);
     if (meta == "yel" || meta == "yellow")
-                                                                        return Format::Var(Format::Var::Type::META, Color::YELLOW);
+                                                                        return Format::Var(Format::Var::Type::META, Formatting::YELLOW);
     if (meta == "whi" || meta == "white")
-                                                                        return Format::Var(Format::Var::Type::META, Color::WHITE);
+                                                                        return Format::Var(Format::Var::Type::META, Formatting::WHITE);
     if (meta == "bld" || meta == "bold")
-                                                                        return Format::Var(Format::Var::Type::META, BLD);
+                                                                        return Format::Var(Format::Var::Type::META, Formatting::BOLD);
     if (meta == "udl" || meta == "undl" || meta == "underline")
-                                                                        return Format::Var(Format::Var::Type::META, UDL);
+                                                                        return Format::Var(Format::Var::Type::META, Formatting::UNDERLINE);
     try {
                                                                         return Format::Var(std::stol(meta)); 
     } catch (std::invalid_argument const&) {}
@@ -180,7 +180,7 @@ std::string Format::formate(std::vector<Message> msgs, bool with_color) const {
             case Format::Var::Type::NEW_LINE : out += "\n"; end_by_endl = true; break;
             case Format::Var::Type::POS : for (; itr->pos > (long)out.size(); out += " "); break;
             case Format::Var::Type::COLOR : if (with_color) out += main.color; break;
-            case Format::Var::Type::CLEAR : if (with_color) out += RST; break;
+            case Format::Var::Type::CLEAR : if (with_color) out += Formatting::CLEAR; break;
             case Format::Var::Type::META : if (with_color) out += itr->str; break;
 
             case Format::Var::Type::BEG:
@@ -226,7 +226,7 @@ void Handler::write(Message const& msg, Format const& fmt) {
 
 void Handler::writeMulti(std::vector<Message> const& msgs, Format const& fmt) {
     if (_color)
-        append(fmt.formate(msgs, true) + RST);
+        append(fmt.formate(msgs, true) + Formatting::CLEAR);
     else 
         append(fmt.formate(msgs, false));
 }
@@ -320,13 +320,13 @@ void Logger::_entering(const char* file, std::string const& func, long line, std
         ps = "void";
     if (this->level <= Level::TRACE)
         for (auto& hi : handlers)
-            hi.h->enter( {name, ps, func, file, line, level, Color::GREEN, usec, t });
+            hi.h->enter( {name, ps, func, file, line, level, getColor(Level::TRACE), usec, t });
 }
 
 void Logger::_exiting(const char* /*file*/, std::string const& /*func*/, long line, std::string const& obj) {
     if (this->level <= Level::TRACE)
         for (auto& hi : handlers)
-            hi.h->exit({name, obj, stackTr.back().func, stackTr.back().file, line, level, Color::GREEN, get_usec(), getTime() });
+            hi.h->exit({name, obj, stackTr.back().func, stackTr.back().file, line, level, getColor(Level::TRACE), get_usec(), getTime() });
     
     stackTr.pop_back();
 }
@@ -336,10 +336,10 @@ void Logger::_stackTrace(const char* file, std::string const& func, long line, i
     auto itr = stackTr.rbegin();
     bool first = true;
     std::vector<Message> msgs;
-    msgs.push_back({name, "", func, file, line, level, Color::GREEN, get_usec(), getTime() });
+    msgs.push_back({name, "", func, file, line, level, Formatting::GREEN, get_usec(), getTime() });
     unsigned int num = 0;
     while (itr != stackTr.rend() && (--depth) != 0) {
-        msgs.push_back({ name, std::to_string(num++), itr->func, itr->file, itr->line, level, Color::GREEN, itr->usec, itr->time });
+        msgs.push_back({ name, std::to_string(num++), itr->func, itr->file, itr->line, level, getColor(Level::TRACE), itr->usec, itr->time });
 
         if (!first)
             ps += ", ";
@@ -386,7 +386,7 @@ void Logger::_info(const char* file, std::string const& func, long line, std::st
 }
 
 const char* Logger::getColor(unsigned int i) {
-    const char* col = Color::WHITE;
+    const char* col = Formatting::WHITE;
     for (auto p : colorsLevel) {
         if (p.second >= i)
             col = p.first;
@@ -394,5 +394,5 @@ const char* Logger::getColor(unsigned int i) {
             return col;
     }
 
-    return Color::WHITE;
+    return Formatting::WHITE;
 }

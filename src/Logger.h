@@ -11,10 +11,6 @@
 #include <map>
 #include <list>
 
-#define RST  "\033[0m"
-#define BLD  "\033[1m"
-#define UDL "\33[4m"
-
 #define log(l, m) _log(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (l), (m))
 
 #define error(m) _error(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m))
@@ -49,7 +45,7 @@ public:
 };
 
 
-class Color {
+class Formatting {
 public:
     static constexpr char const* RED = "\033[31m";
     static constexpr char const* GREEN = "\033[32m"; 
@@ -58,6 +54,9 @@ public:
     static constexpr char const* MAGENTA = "\033[35m"; 
     static constexpr char const* CYAN = "\033[36m";
     static constexpr char const* WHITE = "\033[37m";
+    static constexpr char const* CLEAR = "\033[0m";
+    static constexpr char const* BOLD = "\033[1m";
+    static constexpr char const* UNDERLINE = "\033[4m";
 };
 
 struct Message {
@@ -204,7 +203,7 @@ public:
         void _throwException (const char* file, std::string const& func, long line, std::string const& msg) {
             if (this->level <= Level::EXCEPTION)
                 for (auto& hi : handlers)
-                    hi.h->exception( {name, msg, func, file, line, level, Color::RED, get_usec(), getTime() });
+                    hi.h->exception( {name, msg, func, file, line, level, Formatting::RED, get_usec(), getTime() });
             this->_stackTrace(file, func, line, 0);
             T tmp(msg);
             throw tmp;

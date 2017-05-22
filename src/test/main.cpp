@@ -45,12 +45,12 @@ int main (int , char **) {
 
     logger.setColorsLevel(
         {
-            { Color::RED, 600 },
-            { Color::YELLOW, 500 },
-            { Color::MAGENTA, 400 },
-            { Color::GREEN, 300 },
-            { Color::BLUE, 200 },
-            { Color::CYAN, 100 }
+            { Formatting::RED, 600 },
+            { Formatting::YELLOW, 500 },
+            { Formatting::MAGENTA, 400 },
+            { Formatting::GREEN, 300 },
+            { Formatting::BLUE, 200 },
+            { Formatting::CYAN, 100 }
         }
     );
     logger.warn("Begin now");
@@ -65,11 +65,11 @@ int main (int , char **) {
     test::other();
 
     } catch ( std::runtime_error const& e ) {
-        std::cout << "terminate called after throwing an instance of 'std::runtime_error' " << std::endl << "what(): " << e.what() << std::endl;
+        std::cout << "> terminate called after throwing an instance of 'std::runtime_error' " << std::endl << "> what(): " << e.what() << std::endl;
     }
 
     logger.exiting("0");
-    logger.setLevel(Level::ALL);
+    //logger.setLevel(Level::ALL);
     logger.warn("End now");
 
     return 0;

@@ -6,8 +6,9 @@ SRC_MAIN := src/test/main.cpp
 INCLUDES := src/logger.h
 
 BUILD_DIR := $(addprefix build/,$(SRC_DIR))
-BUILD_DIR := $(addprefix build/shared/,$(SRC_DIR))
+BUILD_DIR += $(addprefix build/shared/,$(SRC_DIR))
 BUILD_DIR += build/dest
+BUILD_DIR += build/src/test
 
 DEST := build/dest/main
 

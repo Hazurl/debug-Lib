@@ -52,7 +52,7 @@ private:
     Logger& _logger = Logger::get("main.clazz");
 };
 
-};
+}
 
 int main (int , char **) {
     try {

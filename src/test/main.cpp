@@ -9,21 +9,18 @@ Logger& logger = Logger::get("main");
 
 namespace test {
 void thing (bool thr) {
-    if (thr)
-        logger.entering({"true"});
-    else
-        logger.entering({ "false"});
-    logger.debug("inside function thing from namespace test");
-    logger.stackTrace(0);
-    logger.warn("An exception may occur");
-    if (thr) logger.throwException(std::runtime_error, "This is a bug !");
-    logger.exiting("void");
+    logger.ENTERING({ stringify(thr) });
+    logger.DEBUG("inside function thing from namespace test");
+    logger.STRACKTRACE(0);
+    logger.WARN("An exception may occur");
+    if (thr) logger.THROWEXCEPTION(std::runtime_error, "This is a bug !");
+    logger.EXITING("void");
     return;
 }
 void other () {
-    logger.entering({});
-    logger.stackTrace(0);
-    logger.info("Something long");
+    logger.ENTERING({});
+    logger.STRACKTRACE(0);
+    logger.INFO("Something long");
     long ii = 0;
     while (ii++ < 1000) {
         std::string s = "";
@@ -32,16 +29,35 @@ void other () {
             s += ".";
     }
 
-    logger.info("calling \"thing\"");
+    logger.INFO("calling \"thing\"");
     thing(true);
-    logger.exiting("void");
+    logger.EXITING("void");
 }
+class Clazz {
+public:
+    Clazz () { _logger.addHandler( (new ConsoleHandler())->color(true) ); }
+    int negate(int number, bool do_it) {
+        _logger.ENTERING({ stringify(number), stringify(do_it) });
+        _logger.STRACKTRACE(0);
+        if (do_it) {
+            _logger.EXITING( stringify(-number) );
+            return -number;
+        } else {
+            _logger.EXITING( stringify(number) );
+            return number;
+        }
+    }
+
+private:
+    Logger& _logger = Logger::get("main.clazz");
+};
+
 };
 
 int main (int , char **) {
     try {
     logger.addHandler( (new FileHandler("out.txt", true))->color(true) );
-    logger.addHandler( (new ConsoleHandler())->color(true) );
+    //logger.addHandler( (new ConsoleHandler())->color(true) );
 
     logger.setColorsLevel(
         {
@@ -53,14 +69,14 @@ int main (int , char **) {
             { Formatting::CYAN, 100 }
         }
     );
-    logger.warn("Begin now");
+    logger.WARN("Begin now");
     //logger.setLevel(Level::OFF);
-    logger.entering({});
-    logger.stackTrace(0);
+    logger.ENTERING({});
+    logger.STRACKTRACE(0);
 
-    logger.error("with maccro");
-    logger.log(Level::CONFIG, "config ok !");
-    logger.trace("calling \"thing\" then \"other\"");
+    logger.ERROR("with maccro");
+    logger.LOG(Level::CONFIG, "config ok !");
+    logger.TRACE("calling \"thing\" then \"other\"");
     test::thing(false);
     test::other();
 
@@ -68,9 +84,20 @@ int main (int , char **) {
         std::cout << "> terminate called after throwing an instance of 'std::runtime_error' " << std::endl << "> what(): " << e.what() << std::endl;
     }
 
-    logger.exiting("0");
+
+    logger.INFO("Creating clazz...");
+    test::Clazz tmp;
+    tmp.negate(1000, true);
+    logger.WARN("Silence logger main");
+    logger.setLevel(Level::OFF);
+    tmp.negate(8000, false);
+    logger.setLevel(Level::DEBUG);
+    logger.INFO("should not be displayed");
+    logger.DEBUG("must be displayed");
+
+    logger.EXITING("0");
     //logger.setLevel(Level::ALL);
-    logger.warn("End now");
+    logger.WARN("End now");
 
     return 0;
 }

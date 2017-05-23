@@ -1,7 +1,6 @@
 #ifndef __LOGGER_H__
 #define __LOGGER_H__
 
-#include <ctime>
 #include <sys/time.h>
 #include <vector>
 #include <string>
@@ -11,20 +10,20 @@
 #include <map>
 #include <list>
 
-#define log(l, m) _log(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (l), (m))
+#define LOG(l, m...) log(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (l), m )
 
-#define error(m) _error(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m))
-#define warn(m) _warn(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m))
-#define config(m) _config(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m))
-#define trace(m) _trace(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m))
-#define debug(m) _debug(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m))
-#define info(m) _info(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, (m))
+#define ERROR(m...) error(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, m )
+#define WARN(m...) warn(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, m )
+#define CONFIG(m...) config(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, m )
+#define TRACE(m...) trace(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, m )
+#define DEBUG(m...) debug(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, m )
+#define INFO(m...) info(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, m )
 
-#define entering(p) _entering(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, p)
-#define exiting(o) _exiting(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__ , o )
+#define ENTERING(p...) entering(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, p )
+#define EXITING(o...) exiting(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__ , o )
 
-#define stackTrace(d) _stackTrace(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__ , d )
-#define throwException(t, m) _throwException<t> (__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__ , m );
+#define STRACKTRACE(d...) stackTrace(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__ , d )
+#define THROWEXCEPTION(t, m...) throwException<t> (__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__ , m , false );
 
 namespace haz {
 
@@ -60,7 +59,7 @@ public:
 };
 
 struct Message {
-    const char* name;
+    std::string name;
     std::string msg;
     std::string func;
     std::string file;
@@ -182,42 +181,49 @@ private:
 
 class Logger {
 public:
-        Logger(const char* name = "");
-        ~Logger();
+    Logger(std::string const& name = "", Logger* parent = nullptr);
+    ~Logger();
 
-        static Logger& get(const char* name);
+    static Logger& get(std::string const& name);
 
-        Logger& clearHandlers();
-        Logger& addHandler(Handler* h, bool destroy_by_logger = true);
-        
-        Logger& setLevel(int l);
-        Logger& setColorsLevel(std::vector< std::pair<const char*, unsigned int> > vcl);
+    Logger& clearHandlers();
+    Logger& addHandler(Handler* h, bool destroy_by_logger = true);
 
-        bool isEnabled(unsigned int l);
+    Logger& setLevel(int l);
+    Logger& setColorsLevel(std::vector< std::pair<const char*, unsigned int> > vcl);
 
-        void _entering(const char* file, std::string const& func, long line, std::vector<std::string> params);
-        void _exiting(const char* file, std::string const& func, long line, std::string const& obj);
-        void _stackTrace(const char* file, std::string const& func, long line, int depth = 0); // 0 = all
+    bool isEnabled(unsigned int l);
 
-        template<class T>
-        void _throwException (const char* file, std::string const& func, long line, std::string const& msg) {
-            if (this->level <= Level::EXCEPTION)
-                for (auto& hi : handlers)
-                    hi.h->exception( {name, msg, func, file, line, level, Formatting::RED, get_usec(), getTime() });
-            this->_stackTrace(file, func, line, 0);
-            T tmp(msg);
-            throw tmp;
+    void entering(std::string const& file, std::string const& func, long line, std::vector<std::string> params);
+    void exiting(std::string const& file, std::string const& func, long line, std::string const& obj);
+    void stackTrace(std::string const& file, std::string const& func, long line, int depth = 0); // 0 = all
+
+    template<class T>
+    void throwException (std::string const& file, std::string const& func, long line, std::string const& msg, bool throw_it) {
+        if (this->level <= Level::EXCEPTION) {
+            for (auto& hi : handlers)
+                hi.h->exception( {name, msg, func, file, line, level, Formatting::RED, get_usec(), getTime() });
+            if (parent)
+                parent->throwException<T>(file, func, line, msg, false);
         }
 
-        void _log(const char* file, std::string const& func, long line, unsigned int level, std::string const& msg);
-        void _error(const char* file, std::string const& func, long line, std::string const& msg);
-        void _warn(const char* file, std::string const& func, long line, std::string const& msg);
-        void _config(const char* file, std::string const& func, long line, std::string const& msg);
-        void _trace(const char* file, std::string const& func, long line, std::string const& msg);
-        void _debug(const char* file, std::string const& func, long line, std::string const& msg);
-        void _info(const char* file, std::string const& func, long line, std::string const& msg);
+        this->stackTrace(file, func, line, 0);
+        if (!throw_it) return;
+        T tmp(msg);
+        throw tmp;
+    }
+
+    void log(std::string const& file, std::string const& func, long line, unsigned int level, std::string const& msg);
+    void error(std::string const& file, std::string const& func, long line, std::string const& msg);
+    void warn(std::string const& file, std::string const& func, long line, std::string const& msg);
+    void config(std::string const& file, std::string const& func, long line, std::string const& msg);
+    void trace(std::string const& file, std::string const& func, long line, std::string const& msg);
+    void debug(std::string const& file, std::string const& func, long line, std::string const& msg);
+    void info(std::string const&  file, std::string const& func, long line, std::string const& msg);
 
 private:
+
+    void setParent (Logger* l) { parent = l; }
 
     tm getTime() {
         time_t rawtime;
@@ -231,10 +237,10 @@ private:
         return tv.tv_usec;
     }
 
-    static std::map<const char*, Logger> loggers;
+    static std::map<std::string, Logger> loggers;
 
     struct stackInfo {
-        const char* file;
+        std::string const& file;
         std::string func;
         long line;
         std::vector<std::string> params;
@@ -251,7 +257,8 @@ private:
     std::list<HandlerInfo> handlers;
 
     unsigned int level = Level::ALL;
-    const char* name;
+    std::string name;
+    Logger* parent = nullptr;
 
     const char* getColor(unsigned int i);
     std::vector< std::pair<const char*, unsigned int> > colorsLevel;
@@ -273,24 +280,26 @@ static std::string getScopedClassMethod( std::string thePrettyFunction ) {
   return thePrettyFunction;   // The scoped class name. 
 }
 
-/*
-template<class T>
-std::string stringify (T const& t) {
-    std::ostringstream os;
-    os << t;
-    return os.str();
+
+template<typename T>
+std::string stringify (T t) {
+    std::stringstream ss;
+    ss << t;
+    return ss.str();
 }
 
-template<> std::string stringify<std::string> (std::string const& t)                { return t; }
-template<> std::string stringify<int> (int const& t)                                { return std::to_string(t); }
-template<> std::string stringify<long double> (long double const& t)                { return std::to_string(t); }
-template<> std::string stringify<long> (long const& t)                              { return std::to_string(t); }
-template<> std::string stringify<unsigned long> (unsigned long const& t)            { return std::to_string(t); }
-template<> std::string stringify<float> (float const& t)                            { return std::to_string(t); }
-template<> std::string stringify<double> (double const& t)                          { return std::to_string(t); }
-template<> std::string stringify<long long> (long long const& t)                    { return std::to_string(t); }
-template<> std::string stringify<unsigned> (unsigned const& t)                      { return std::to_string(t); }
-template<> std::string stringify<unsigned long long> (unsigned long long const& t)  { return std::to_string(t); }
-*/
+template<> std::string stringify<std::string> (std::string t);
+template<> std::string stringify<int> (int t);
+template<> std::string stringify<long double> (long double t);
+template<> std::string stringify<long> (long t);
+template<> std::string stringify<unsigned long> (unsigned long t);
+template<> std::string stringify<float> (float t);
+template<> std::string stringify<double> (double t);
+template<> std::string stringify<long long> (long long t);
+template<> std::string stringify<unsigned> (unsigned t);
+template<> std::string stringify<unsigned long long> (unsigned long long t);
+template<> std::string stringify<bool> (bool t);
+
 } // namespace haz
+
 #endif

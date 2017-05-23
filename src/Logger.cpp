@@ -265,15 +265,23 @@ void StreamHandler::append(std::string const& msg) {
 
 // ===== LOGGER =====
 
-std::map<const char*, Logger> Logger::loggers = {};
+std::map<std::string, Logger> Logger::loggers = {};
 
-Logger& Logger::get(const char* name) {
+Logger& Logger::get(std::string const& name) {
+    Logger* parent = nullptr;
+    size_t pos = name.rfind(".");
+    if (pos != std::string::npos && pos != (name.size() - 1)) {
+        std::string parentName = name;
+        parentName.erase(pos);
+        parent = &Logger::get(parentName);
+    }
+
     if (loggers.find(name) == loggers.end())
-        loggers.insert( { name, Logger(name) } );
+        loggers.insert( { name, Logger(name, parent) } );
     return loggers[name];
 }
 
-Logger::Logger(const char* name) : name(name) {}
+Logger::Logger(std::string const& name, Logger* parent) : name(name), parent(parent) {}
 Logger::~Logger() { clearHandlers(); }
 
 Logger& Logger::clearHandlers() {
@@ -302,87 +310,104 @@ bool Logger::isEnabled(unsigned int l) {
     return l >= level;
 }
 
-void Logger::_entering(const char* file, std::string const& func, long line, std::vector<std::string> params) {
+void Logger::entering(std::string const& file, std::string const& func, long line, std::vector<std::string> params) {
     tm t = getTime();
     long usec = get_usec();
     stackTr.push_back( {file, func, line, params, usec, t } );
-    std::string ps = "";
-    if (!params.empty()) {
+
+    if (this->level <= Level::TRACE) {
+        std::string ps = "";
+        if (!params.empty()) {
+            bool first = true;
+            for (auto p : params) {
+                if (!first)
+                    ps += ", ";
+                else
+                    first = false;
+                ps += p;
+            }
+        } else 
+            ps = "void";
+        for (auto& hi : handlers)
+            hi.h->enter( {name, ps, func, file, line, level, getColor(Level::TRACE), usec, t });
+        if (parent)
+            parent->entering(file, func, line, params);
+    }
+}
+
+void Logger::exiting(std::string const& file, std::string const& func, long line, std::string const& obj) {
+    if (this->level <= Level::TRACE) {
+        for (auto& hi : handlers)
+            hi.h->exit({name, obj, stackTr.back().func, stackTr.back().file, line, level, getColor(Level::TRACE), get_usec(), getTime() });
+
+        if (parent)
+            parent->exiting(file, func, line, obj);
+    }
+
+    if (!stackTr.empty())
+        stackTr.pop_back();
+}
+
+void Logger::stackTrace(std::string const& file, std::string const& func, long line, int depth) {
+    if (this->level <= Level::TRACE) {
+        std::string ps = "";
+        auto itr = stackTr.rbegin();
         bool first = true;
-        for (auto p : params) {
+        std::vector<Message> msgs;
+        msgs.push_back({name, "", func, file, line, level, Formatting::GREEN, get_usec(), getTime() });
+        unsigned int num = 0;
+        while (itr != stackTr.rend() && (--depth) != 0) {
+            msgs.push_back({ name, std::to_string(num++), itr->func, itr->file, itr->line, level, getColor(Level::TRACE), itr->usec, itr->time });
+
             if (!first)
                 ps += ", ";
             else
                 first = false;
-            ps += p;
+            ps += itr->func;
+            itr++;
         }
-    } else 
-        ps = "void";
-    if (this->level <= Level::TRACE)
-        for (auto& hi : handlers)
-            hi.h->enter( {name, ps, func, file, line, level, getColor(Level::TRACE), usec, t });
-}
 
-void Logger::_exiting(const char* /*file*/, std::string const& /*func*/, long line, std::string const& obj) {
-    if (this->level <= Level::TRACE)
-        for (auto& hi : handlers)
-            hi.h->exit({name, obj, stackTr.back().func, stackTr.back().file, line, level, getColor(Level::TRACE), get_usec(), getTime() });
-    
-    stackTr.pop_back();
-}
-
-void Logger::_stackTrace(const char* file, std::string const& func, long line, int depth) {
-    std::string ps = "";
-    auto itr = stackTr.rbegin();
-    bool first = true;
-    std::vector<Message> msgs;
-    msgs.push_back({name, "", func, file, line, level, Formatting::GREEN, get_usec(), getTime() });
-    unsigned int num = 0;
-    while (itr != stackTr.rend() && (--depth) != 0) {
-        msgs.push_back({ name, std::to_string(num++), itr->func, itr->file, itr->line, level, getColor(Level::TRACE), itr->usec, itr->time });
-
-        if (!first)
-            ps += ", ";
-        else
-            first = false;
-        ps += itr->func;
-        itr++;
-    }
-
-    msgs[0].msg = ps;
-    if (this->level <= Level::TRACE)
+        msgs[0].msg = ps;
         for (auto& hi : handlers)
             hi.h->stack( msgs );
+
+        if (parent)
+            parent->stackTrace(file, func, line, depth);
+    }
 }
 
-void Logger::_log(const char* file, std::string const& func, long line, unsigned int level, std::string const& msg) {
-    if (this->level <= level)
+void Logger::log(std::string const& file, std::string const& func, long line, unsigned int level, std::string const& msg) {
+    if (this->level <= level) {
         for (auto& hi : handlers)
             hi.h->common( {name, msg, func, file, line, level, getColor(level), get_usec(), getTime() } );
+
+        if (parent)
+            parent->log(file, func, line, level, msg);
+    }
 }
 
-void Logger::_error(const char* file, std::string const& func, long line, std::string const& msg) {
-    _log(file, func, line, Level::ERROR, msg);
+void Logger::error(std::string const& file, std::string const& func, long line, std::string const& msg) {
+    log(file, func, line, Level::ERROR, msg);
 }
 
-void Logger::_warn(const char* file, std::string const& func, long line, std::string const& msg) {
-    _log(file, func, line, Level::WARNING, msg);
+void Logger::warn(std::string const& file, std::string const& func, long line, std::string const& msg) {
+    log(file, func, line, Level::WARNING, msg);
 }
 
-void Logger::_config(const char* file, std::string const& func, long line, std::string const& msg) {
-    _log(file, func, line, Level::CONFIG, msg);
+void Logger::config(std::string const& file, std::string const& func, long line, std::string const& msg) {
+    log(file, func, line, Level::CONFIG, msg);
 }
 
-void Logger::_trace(const char* file, std::string const& func, long line, std::string const& msg) {
-    _log(file, func, line, Level::TRACE, msg);
+void Logger::trace(std::string const& file, std::string const& func, long line, std::string const& msg) {
+    log(file, func, line, Level::TRACE, msg);
 }
 
-void Logger::_debug(const char* file, std::string const& func, long line, std::string const& msg) {
-    _log(file, func, line, Level::DEBUG, msg);
+void Logger::debug(std::string const& file, std::string const& func, long line, std::string const& msg) {
+    log(file, func, line, Level::DEBUG, msg);
 }
 
-void Logger::_info(const char* file, std::string const& func, long line, std::string const& msg) {
-    _log(file, func, line, Level::INFO, msg);
+void Logger::info(std::string const& file, std::string const& func, long line, std::string const& msg) {
+    log(file, func, line, Level::INFO, msg);
 }
 
 const char* Logger::getColor(unsigned int i) {
@@ -396,3 +421,15 @@ const char* Logger::getColor(unsigned int i) {
 
     return Formatting::WHITE;
 }
+
+template<> std::string stringify<std::string> (std::string t)                { return t; }
+template<> std::string stringify<int> (int t)                                { return std::to_string(t); }
+template<> std::string stringify<long double> (long double t)                { return std::to_string(t); }
+template<> std::string stringify<long> (long t)                              { return std::to_string(t); }
+template<> std::string stringify<unsigned long> (unsigned long t)            { return std::to_string(t); }
+template<> std::string stringify<float> (float t)                            { return std::to_string(t); }
+template<> std::string stringify<double> (double t)                          { return std::to_string(t); }
+template<> std::string stringify<long long> (long long t)                    { return std::to_string(t); }
+template<> std::string stringify<unsigned> (unsigned t)                      { return std::to_string(t); }
+template<> std::string stringify<unsigned long long> (unsigned long long t)  { return std::to_string(t); }
+template<> std::string stringify<bool> (bool t)                              { return t ? std::string("true") : std::string("false"); }

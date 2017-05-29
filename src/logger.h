@@ -252,7 +252,7 @@ private:
     static std::map<std::string, Logger> loggers;
 
     struct stackInfo {
-        std::string const& file;
+        std::string file;
         std::string func;
         long line;
         std::vector<std::string> params;

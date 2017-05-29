@@ -137,6 +137,8 @@ std::string Format::formate(std::vector<Message> msgs, bool with_color) const {
         return "";
 
     std::string out = "";
+    long pos_left = 0;
+
     Message& main = msgs[0];
     unsigned long msg_pos = 0;
     Message& cur = msgs[msg_pos];
@@ -161,25 +163,27 @@ std::string Format::formate(std::vector<Message> msgs, bool with_color) const {
             continue;
         }
 
+        std::string tmp;
+
         switch(itr->type) {
-            case Format::Var::Type::STRING : out += itr->str; break;
-            case Format::Var::Type::LOG_NAME : out += main.name; break;
-            case Format::Var::Type::FUNC : out += cur.func; break;
-            case Format::Var::Type::FILE : out += cur.file; break;
-            case Format::Var::Type::LINE : out += std::to_string(cur.line); break;
-            case Format::Var::Type::LEVEL : out += Level::to_string(cur.level); break;
-            case Format::Var::Type::DAY : out += fill(std::to_string(cur.time.tm_mday), '0', 2); break;
-            case Format::Var::Type::MONTH : out += fill(std::to_string(cur.time.tm_mon), '0', 2); break;
-            case Format::Var::Type::YEAR : out += std::to_string(1900 + cur.time.tm_year); break;
-            case Format::Var::Type::HOURS : out += fill(std::to_string(cur.time.tm_hour), '0', 2); break;
-            case Format::Var::Type::MIN : out += fill(std::to_string(cur.time.tm_min), '0', 2); break;
-            case Format::Var::Type::SEC : out += fill(std::to_string(cur.time.tm_sec), '0', 2); break;
-            case Format::Var::Type::MIL : out += fill(std::to_string(cur.usec / 1000), '0', 3); break;
-            case Format::Var::Type::USEC : out += fill(std::to_string(cur.usec % 1000), '0', 3); break;
-            case Format::Var::Type::MSG : out += cur.msg; break;
-            case Format::Var::Type::NEW_LINE : out += "\n"; end_by_endl = true; break;
-            case Format::Var::Type::POS : for (; itr->pos > (long)out.size(); out += " "); break;
-            case Format::Var::Type::COLOR : if (with_color) out += main.color; break;
+            case Format::Var::Type::STRING : out += itr->str; pos_left += itr->str.size(); break;
+            case Format::Var::Type::LOG_NAME : out += main.name; pos_left += main.name.size(); break;
+            case Format::Var::Type::FUNC : out += cur.func; pos_left += cur.func.size(); break;
+            case Format::Var::Type::FILE : out += cur.file; pos_left += cur.file.size(); break;
+            case Format::Var::Type::LINE : tmp = std::to_string(cur.line); out += tmp; pos_left += tmp.size(); break;
+            case Format::Var::Type::LEVEL : tmp = Level::to_string(cur.level); out += tmp; pos_left += tmp.size(); break;
+            case Format::Var::Type::DAY : tmp = fill(std::to_string(cur.time.tm_mday), '0', 2); out += tmp; pos_left += tmp.size(); break;
+            case Format::Var::Type::MONTH : tmp = fill(std::to_string(cur.time.tm_mon), '0', 2); out += tmp; pos_left += tmp.size(); break;
+            case Format::Var::Type::YEAR : tmp = std::to_string(1900 + cur.time.tm_year); out += tmp; pos_left += tmp.size(); break;
+            case Format::Var::Type::HOURS : tmp = fill(std::to_string(cur.time.tm_hour), '0', 2); out += tmp; pos_left += tmp.size(); break;
+            case Format::Var::Type::MIN : tmp = fill(std::to_string(cur.time.tm_min), '0', 2); out += tmp; pos_left += tmp.size(); break;
+            case Format::Var::Type::SEC : tmp = fill(std::to_string(cur.time.tm_sec), '0', 2); out += tmp; pos_left += tmp.size(); break;
+            case Format::Var::Type::MIL : tmp = fill(std::to_string(cur.usec / 1000), '0', 3); out += tmp; pos_left += tmp.size(); break;
+            case Format::Var::Type::USEC : tmp = fill(std::to_string(cur.usec % 1000), '0', 3); out += tmp; pos_left += tmp.size(); break;
+            case Format::Var::Type::MSG : out += cur.msg; pos_left += cur.msg.size(); break;
+            case Format::Var::Type::NEW_LINE : out += "\n"; pos_left = 0; end_by_endl = true; break;
+            case Format::Var::Type::POS : for (; itr->pos > pos_left; out += " ") pos_left++; break;
+            case Format::Var::Type::COLOR : if (with_color) out += main.color;  break;
             case Format::Var::Type::CLEAR : if (with_color) out += Formatting::CLEAR; break;
             case Format::Var::Type::META : if (with_color) out += itr->str; break;
 
@@ -213,9 +217,14 @@ std::string Format::fill(std::string str, char filler, unsigned int size) const 
 // ===== HANDLER =====
 
 Handler::Handler () : _color(true),
-    _commonFormat("[{day}/{mon}/{year} {hour}:{min}:{sec},{mil} {mic}] {col}from {func} ({line}) {bld}{lvl}{clr} : {msg}"),
-    _exFormat("═════════════════════════════════════════════════════════════════════════════════════════════════════{endl}[{day}/{mon}/{year} {hour}:{min}:{sec},{mil} {mic}] {red}{bld}/!\\\\ {udl}Exception{clr} >> {msg}"),
-    _stackFormat("{endl}{bld}{name}{clr}{30}═════{clr} {grn}{bld}Stack Trace{clr} ═════{clr}{endl}{beg}({hour}:{min}:{sec},{mil} {mic}) {udl}{func}{clr}, line {line} ({file}){endl}{end}{endl}"),
+    _commonFormat("[ {hour}:{min}:{sec} ] {col}from {func} ({line}){clr} : {msg}"),
+    _exFormat("{red}{bld}═════════════════════════════════════════════════════════════════════════════════════════════════════{clr}{endl}{endl}"
+              "From {bold}{func}{clr} in {bold}{file}{clr} (line {bold}{line}{clr}){endl}"
+              "The {day}/{mon}/{year} at {hour}:{min}:{sec} (exactly {mil} {mic} µs){endl}"
+              "{red}{bld}/!\\\\ {udl}Exception throwed{clr}{bld}{red} >> {clr}{red}{msg}{clr}{endl}{endl}"
+              "{red}{bld}═════════════════════════════════════════════════════════════════════════════════════════════════════{clr}{endl}"),
+    _stackFormat("{endl}{bld}{name}{clr}{30}<{clr} {grn}{bld}Stack Trace{clr} >{clr}{endl}"
+                 "{beg}{5}{file}@{line} {30}{bld}{udl}{func}{clr}{endl}{end}{endl}"),
     _enteringFormat("{grn}{bld}Entering{clr} {func} ({bld}{msg}{clr})"),
     _exitingFormat("{grn}{bld}Exiting{clr} {func} (return {bld}{msg}{clr})") {}
 Handler::~Handler() {}

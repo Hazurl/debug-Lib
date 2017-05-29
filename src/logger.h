@@ -20,7 +20,9 @@
 #define INFO(m...) info(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, m )
 
 #define ENTERING(p...) entering(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__, p )
-#define EXITING(o...) exiting(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__ , o )
+#define EXITING(s...) exiting(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__ , s )
+#define RET(s...) ret(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__ , s)
+#define RET_STR(s...) ret(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__ , stringify(s), s)
 
 #define STRACKTRACE(d...) stackTrace(__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__ , d )
 #define THROWEXCEPTION(t, m...) throwException<t> (__FILE__, getScopedClassMethod(__PRETTY_FUNCTION__), __LINE__ , m , false );
@@ -211,6 +213,16 @@ public:
         if (!throw_it) return;
         T tmp(msg);
         throw tmp;
+    }
+
+    template<class T>
+    T const& ret(std::string const& file, std::string const& func, long line, std::string const& str, T const& obj_ret) {
+        this->exiting(file, func, line, str);
+        return obj_ret;
+    }
+
+    void ret(std::string const& file, std::string const& func, long line, std::string const& str) {
+        this->exiting(file, func, line, str);
     }
 
     void log(std::string const& file, std::string const& func, long line, unsigned int level, std::string const& msg);

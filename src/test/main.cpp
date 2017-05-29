@@ -31,21 +31,19 @@ void other () {
 
     logger.INFO("calling \"thing\"");
     thing(true);
-    logger.EXITING("void");
+    return logger.RET( "void" );
 }
+
 class Clazz {
 public:
-    Clazz () { _logger.addHandler( (new ConsoleHandler())->color(true) ); }
+    Clazz () { /*_logger.addHandler( (new ConsoleHandler())->color(true) );*/ }
     int negate(int number, bool do_it) {
         _logger.ENTERING({ stringify(number), stringify(do_it) });
         _logger.STRACKTRACE(0);
-        if (do_it) {
-            _logger.EXITING( stringify(-number) );
-            return -number;
-        } else {
-            _logger.EXITING( stringify(number) );
-            return number;
-        }
+        if (do_it)
+            return _logger.RET( stringify(-number), -number);
+        else
+            return _logger.RET_STR(number);
     }
 
 private:
@@ -57,7 +55,7 @@ private:
 int main (int , char **) {
     try {
     logger.addHandler( (new FileHandler("out.txt", true))->color(true) );
-    //logger.addHandler( (new ConsoleHandler())->color(true) );
+    logger.addHandler( (new ConsoleHandler())->color(true) );
 
     logger.setColorsLevel(
         {
@@ -89,7 +87,6 @@ int main (int , char **) {
     test::Clazz tmp;
     tmp.negate(1000, true);
     logger.WARN("Silence logger main");
-    logger.setLevel(Level::OFF);
     tmp.negate(8000, false);
     logger.setLevel(Level::DEBUG);
     logger.INFO("should not be displayed");

@@ -217,7 +217,7 @@ std::string Format::fill(std::string str, char filler, unsigned int size) const 
 // ===== HANDLER =====
 
 Handler::Handler () : _color(true),
-    _commonFormat("[ {hour}:{min}:{sec} ] {col}from {func} ({line}){clr} : {msg}"),
+    _commonFormat("[ {hour}:{min}:{sec} ] {col}{func} ({line}){clr} : {bld}{msg}{clr}"),
     _exFormat("{red}{bld}═════════════════════════════════════════════════════════════════════════════════════════════════════{clr}{endl}{endl}"
               "From {bold}{func}{clr} in {bold}{file}{clr} (line {bold}{line}{clr}){endl}"
               "The {day}/{mon}/{year} at {hour}:{min}:{sec} (exactly {mil} {mic} µs){endl}"

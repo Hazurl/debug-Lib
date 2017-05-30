@@ -72,4 +72,4 @@ install: $(BUILD_DIR) $(OBJ_SHARED)
 	@echo "----------------"
 	@echo "  Lib Installed "
 	@echo "----------------"
-	@echo "Just include "$(INCLUDES)" in your projects and build with \"-l"$(LIB_NAME)"\""
+	@echo "Just include \033[1m<"$(notdir $(INCLUDES))">\033[0m in your projects and build with \"-l"$(LIB_NAME)"\""
